@@ -1,0 +1,180 @@
+-- User Profiles Table
+CREATE TABLE user_profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  display_name TEXT,
+  avatar_url TEXT,
+  bio TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Create a trigger to automatically create a profile when a user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, username, display_name)
+  VALUES (NEW.id, SPLIT_PART(NEW.email, '@', 1), SPLIT_PART(NEW.email, '@', 1));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Anime Lists Table
+CREATE TABLE anime_lists (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  anime_id INTEGER NOT NULL, -- MAL ID from Jikan API
+  status TEXT NOT NULL CHECK (status IN ('watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch')),
+  score INTEGER CHECK (score >= 0 AND score <= 10),
+  episodes_watched INTEGER DEFAULT 0,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(user_id, anime_id)
+);
+
+-- User Preferences Table
+CREATE TABLE user_preferences (
+  user_id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  theme TEXT DEFAULT 'system',
+  list_view_type TEXT DEFAULT 'grid',
+  items_per_page INTEGER DEFAULT 24,
+  default_list TEXT DEFAULT 'watching',
+  privacy_setting TEXT DEFAULT 'public',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Create a trigger for creating default preferences when a user is created
+CREATE OR REPLACE FUNCTION public.handle_new_user_preferences() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.user_preferences (user_id)
+  VALUES (NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created_preferences
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user_preferences();
+
+-- Custom Lists Table (for user-created lists beyond the standard statuses)
+CREATE TABLE custom_lists (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_public BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(user_id, name)
+);
+
+-- Custom List Items (for mapping anime to custom lists)
+CREATE TABLE custom_list_items (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  custom_list_id UUID REFERENCES custom_lists(id) ON DELETE CASCADE,
+  anime_id INTEGER NOT NULL,
+  added_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(custom_list_id, anime_id)
+);
+
+-- Row Level Security Policies
+
+-- User Profiles RLS
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view any profile"
+  ON user_profiles FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can update their own profile"
+  ON user_profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+-- Anime Lists RLS
+ALTER TABLE anime_lists ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own lists"
+  ON anime_lists FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert into their own lists"
+  ON anime_lists FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own lists"
+  ON anime_lists FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete from their own lists"
+  ON anime_lists FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- User Preferences RLS
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own preferences"
+  ON user_preferences FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own preferences"
+  ON user_preferences FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Custom Lists RLS
+ALTER TABLE custom_lists ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view public custom lists"
+  ON custom_lists FOR SELECT
+  USING (is_public OR auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own custom lists"
+  ON custom_lists FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own custom lists"
+  ON custom_lists FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own custom lists"
+  ON custom_lists FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Custom List Items RLS
+ALTER TABLE custom_list_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view public custom list items"
+  ON custom_list_items FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM custom_lists
+      WHERE custom_lists.id = custom_list_items.custom_list_id
+      AND (custom_lists.is_public OR custom_lists.user_id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can insert items into their own custom lists"
+  ON custom_list_items FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM custom_lists
+      WHERE custom_lists.id = custom_list_items.custom_list_id
+      AND custom_lists.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete items from their own custom lists"
+  ON custom_list_items FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM custom_lists
+      WHERE custom_lists.id = custom_list_items.custom_list_id
+      AND custom_lists.user_id = auth.uid()
+    )
+  );
