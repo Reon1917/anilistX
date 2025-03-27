@@ -1,6 +1,6 @@
 "use client";
 
-import { useTopAnime } from "@/lib/hooks";
+import { useTopAnime } from "@/lib/hooks-axios";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
 

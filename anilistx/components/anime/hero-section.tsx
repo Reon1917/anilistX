@@ -1,6 +1,6 @@
 "use client";
 
-import { useTopAnime } from "@/lib/hooks";
+import { useTopAnime } from "@/lib/hooks-axios";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
