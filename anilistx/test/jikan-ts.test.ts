@@ -5,12 +5,30 @@ import jikanTsService from '../lib/jikan-axios';
 vi.mock('@tutkli/jikan-ts', () => {
   return {
     JikanClient: vi.fn().mockImplementation(() => ({
+      anime: {
+        getAnimeSearch: vi.fn().mockResolvedValue({
+          data: [{ title: 'Anime 1' }, { title: 'Anime 2' }],
+          pagination: { has_next_page: true, current_page: 1 }
+        }),
+        getAnimeById: vi.fn().mockResolvedValue({
+          data: { title: 'Anime 1', synopsis: 'Test synopsis' }
+        }),
+        getAnimeRecommendations: vi.fn().mockResolvedValue({
+          data: [{ title: 'Recommended Anime' }]
+        })
+      },
+      top: {
+        getTopAnime: vi.fn().mockResolvedValue({
+          data: [{ title: 'Top Anime 1' }, { title: 'Top Anime 2' }],
+          pagination: { has_next_page: true, current_page: 1 }
+        })
+      },
       seasons: {
-        getSeasonsList: vi.fn().mockResolvedValue({
+        getSeason: vi.fn().mockResolvedValue({
           data: [{ title: 'Seasonal Anime 1' }, { title: 'Seasonal Anime 2' }],
           pagination: { has_next_page: true, current_page: 1 }
         }),
-        getCurrentSeason: vi.fn().mockResolvedValue({
+        getNow: vi.fn().mockResolvedValue({
           data: [{ title: 'Current Season Anime' }],
           pagination: { has_next_page: false, current_page: 1 }
         })
@@ -20,22 +38,6 @@ vi.mock('@tutkli/jikan-ts', () => {
           data: [{ name: 'Action' }, { name: 'Comedy' }]
         })
       }
-    })),
-    AnimeClient: vi.fn().mockImplementation(() => ({
-      getAnimeSearch: vi.fn().mockResolvedValue({
-        data: [{ title: 'Anime 1' }, { title: 'Anime 2' }],
-        pagination: { has_next_page: true, current_page: 1 }
-      }),
-      getAnimeById: vi.fn().mockResolvedValue({
-        data: { title: 'Anime 1', synopsis: 'Test synopsis' }
-      }),
-      getAnimeTop: vi.fn().mockResolvedValue({
-        data: [{ title: 'Top Anime 1' }, { title: 'Top Anime 2' }],
-        pagination: { has_next_page: true, current_page: 1 }
-      }),
-      getAnimeRecommendations: vi.fn().mockResolvedValue({
-        data: [{ title: 'Recommended Anime' }]
-      })
     }))
   };
 });

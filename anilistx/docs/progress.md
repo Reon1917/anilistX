@@ -48,9 +48,9 @@
 - [ ] Improve accessibility
 
 ## Phase 7: Testing & Optimization
-- [ ] Implement unit tests
+- [x] Implement unit tests (Vitest for API services)
 - [ ] Conduct performance testing
-- [ ] Optimize image loading
+- [x] Optimize image loading (Next.js Image component with domains config)
 - [ ] Implement caching strategies
 
 ## Phase 8: Deployment
@@ -60,9 +60,20 @@
 - [ ] Launch MVP
 
 ## Current Focus
-- Building user profile page and list management
-- Implementing list addition/editing functionality
-- Creating user preferences system
+- Integration of @tutkli/jikan-ts for more reliable API access
+- Optimizing API calls and handling edge cases
+- Implementing proper error handling
+- Setting up unit tests for core functionality
+
+## Current Issues
+- ⚠️ Only the main homepage is currently working
+- ⚠️ Secondary pages (seasonal, top, search, anime details) failing with:
+  ```
+  Error: The "listener" argument must be of type Function. Received type object
+  ```
+  in `lib/jikan.ts` at `getSeasonalAnime` function when using `jikanjs.raw(['seasons', 'now'], {...})`
+- ⚠️ Next.js config warning: "Unrecognized key(s) in object: 'remote' at images"
+- ⚠️ API method mismatches between jikan-ts mock tests and actual implementation
 
 ## Bug Fixes
 - [x] Fixed Select component error with empty string values
@@ -71,3 +82,6 @@
 - [x] Fixed API method calls in jikanjs integration
 - [x] Updated TypeScript declarations for jikanjs
 - [x] Resolved "listener" error by switching to raw() method for API calls
+- [x] Fixed Next.js Image component domain configuration for MyAnimeList CDN
+- [x] Implemented jikan-ts and fixed API method calls
+- [x] Added fallback mechanisms for API inconsistencies

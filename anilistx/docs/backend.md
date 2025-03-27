@@ -4,8 +4,85 @@
 - Supabase for authentication and database
 - Next.js API routes for middleware
 - Jikan API for anime data
+- jikan-ts and jikanjs for API integration
 
-## Database Schema
+## Current Implementation Status
+
+### Jikan API Integration
+We've implemented a dual-approach system for accessing the Jikan API:
+
+1. **Primary Implementation (jikan-ts):**
+   - Fully typed TypeScript wrapper for Jikan API
+   - Built-in HTTP request caching using axios-cache-interceptor
+   - Resilient implementation with fallback mechanisms
+   - Organized into specialized clients (AnimeClient, TopClient, etc.)
+   - Clean error handling and logging capabilities
+
+2. **Secondary Implementation (jikanjs):**
+   - Using @mateoaranda/jikanjs as a fallback
+   - Direct raw API access through the raw() method
+   - Customized to match our data types and service structure
+
+### Service Layer
+Our service layer is structured around these components:
+
+1. **JikanTsService:**
+   - Singleton service instance using jikan-ts
+   - Methods for fetching anime, genres, recommendations, etc.
+   - Type-safe responses with proper error handling
+   - Automatically handles pagination and filtering
+
+2. **SWR Integration:**
+   - Custom hooks built on top of SWR for data fetching
+   - Automatic caching and revalidation
+   - Optimistic UI updates
+   - Loading and error states
+
+### Current API Issues
+
+The application is currently facing several critical issues with the API integration:
+
+1. **jikanjs "listener" Error:**
+   ```
+   Error: The "listener" argument must be of type Function. Received type object
+   ```
+   This occurs in the `getSeasonalAnime` function when using `jikanjs.raw(['seasons', 'now'], {...})`. The error suggests that jikanjs is expecting a function as a parameter, but is receiving an object.
+
+2. **Method Signature Mismatches:**
+   - The jikan-ts library has inconsistent method signatures that don't match our tests
+   - Primary affected methods:
+     - `seasons.getSeasonsList` vs `seasons.getSeason`
+     - `seasons.getCurrentSeason` vs `seasons.getNow`
+
+3. **Partial Implementation:**
+   - The primary implementation (jikan-ts) is working on the homepage
+   - Secondary pages (seasonal, top, search, details) are still using the jikanjs implementation which is failing
+
+4. **Next.js Config Warning:**
+   - "Unrecognized key(s) in object: 'remote' at images" in next.config.ts
+
+### Data Flow Architecture
+```
+UI Components → SWR Hooks → JikanTsService → jikan-ts Client → Jikan API
+                                  ↓
+                          Fallback mechanisms
+                                  ↓
+                          JikanJS raw() calls
+```
+
+### Error Handling Strategy
+- Primary try/catch blocks in service methods
+- Fallback mechanisms when API methods don't match expectations
+- Detailed console logging for API errors
+- SWR error states exposed to UI components
+
+### Testing Implementation
+- Vitest for unit testing
+- Mock implementation of jikan-ts API
+- Tests for all core service methods
+- Isolates API testing from UI components
+
+## Database Schema (Planned)
 
 ### Users Table
 Extends Supabase Auth with user-specific data:
@@ -53,6 +130,13 @@ CREATE TABLE user_preferences (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ```
+
+## Next Steps
+1. Implement database tables and Row-Level Security
+2. Build middleware API routes for list management
+3. Create user preference system
+4. Optimize API caching strategies
+5. Build authentication flow and protected routes
 
 ## API Structure
 

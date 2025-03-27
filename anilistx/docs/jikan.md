@@ -1,3 +1,78 @@
+# Jikan API Integration
+
+## Current Implementation
+
+We are currently using two Jikan API client libraries:
+
+### Primary: @tutkli/jikan-ts
+
+A modern TypeScript wrapper for the Jikan API with built-in types, caching, and structured client architecture.
+
+```typescript
+import { JikanClient } from '@tutkli/jikan-ts';
+
+const client = new JikanClient({
+  enableLogging: false, // Enable for debugging
+});
+
+// Access through specialized sub-clients
+const animeData = await client.anime.getAnimeById(1);
+const topAnime = await client.top.getTopAnime({ page: 1, limit: 25 });
+const seasonalAnime = await client.seasons.getSeason(2023, 'winter', { page: 1 });
+```
+
+#### Features
+- Fully typed responses
+- Built-in HTTP caching with axios-cache-interceptor
+- Organized client structure
+- ESM with tree-shaking support
+
+Our implementation includes fallback mechanisms for API inconsistencies and proper error handling to ensure reliability.
+
+### Secondary: @mateoaranda/jikanjs
+
+Used as a fallback for certain operations or when needed.
+
+```typescript
+import jikanjs from '@mateoaranda/jikanjs';
+
+// Using raw method for direct API access
+const response = await jikanjs.raw(['anime', id]);
+```
+
+## Current Issues
+
+### "listener" Error in Secondary Pages
+
+We're currently experiencing an error with the jikanjs implementation:
+
+```
+Error: The "listener" argument must be of type Function. Received type object
+
+lib\jikan.ts (194:26) @ getSeasonalAnime
+
+  192 |       } else {
+  193 |         // Default to current season
+> 194 |         response = await jikanjs.raw(['seasons', 'now'], {
+      |                          ^
+  195 |           page: page,
+  196 |           limit: limit
+  197 |         });
+```
+
+This error occurs in the `getSeasonalAnime` function when trying to fetch seasonal anime data. It appears the jikanjs library is expecting a function as a parameter for its event handling, but is receiving a configuration object.
+
+### API Integration Status
+- Main homepage: Working (using jikan-ts implementation)
+- Secondary pages: Not working (using jikanjs implementation with "listener" error)
+
+### Next Steps
+1. Fix parameter format in jikanjs.raw() calls
+2. Complete migration to jikan-ts for all pages
+3. Add better error handling and fallbacks
+
+---
+
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/mateoaranda/jikanjs/.github/workflows/node.js.yml?branch=master) ![Known Vulnerabilities](https://snyk.io/test/github/mateoaranda/jikanjs/badge.svg) 
 
 
