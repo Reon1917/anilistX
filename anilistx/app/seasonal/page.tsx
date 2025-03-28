@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSeasonalAnime } from "@/lib/hooks-wrapper";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
@@ -38,7 +38,52 @@ export default function SeasonalPage() {
   const displayYear = year || currentYear;
   const displaySeason = season || getCurrentSeason();
   
-  const { data, isLoading, isError } = useSeasonalAnime(year, season, page);
+  // Create a key that changes whenever year or season changes to force refetch
+  const requestKey = `${displayYear}-${displaySeason}-${page}`;
+  
+  // Loading timeout handling
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // State to track retry attempts
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Get the data using our improved hook that handles caching correctly
+  const { data, isLoading, isError, refresh } = useSeasonalAnime(year, season, page, 25, retryCount);
+  
+  // Setup loading timeout to detect stuck loading states
+  useEffect(() => {
+    if (isLoading) {
+      // Clear any existing timeout
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      
+      // Set a new timeout to auto-retry if loading takes too long
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('Loading timeout - auto retrying...');
+        setRetryCount(prev => prev + 1);
+      }, 10000); // 10 seconds timeout
+    } else {
+      // Clear timeout when not loading
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [isLoading]);
+  
+  // Function to retry fetching data
+  const handleRetry = useCallback(() => {
+    setRetryCount(prev => prev + 1);
+    refresh();
+  }, [refresh]);
   
   const navigatePrevSeason = () => {
     if (!year && !season) {
@@ -185,7 +230,7 @@ export default function SeasonalPage() {
             <p className="text-muted-foreground mb-4">
               There was an error loading the seasonal anime. Please try again.
             </p>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
+            <Button onClick={handleRetry}>Retry</Button>
           </div>
         ) : isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">

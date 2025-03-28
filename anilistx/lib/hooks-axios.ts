@@ -95,19 +95,29 @@ export function useTopAnime(filter: string = '', page: number = 1, limit: number
  * Hook for getting seasonal anime
  */
 export function useSeasonalAnime(year?: number, season?: string, page: number = 1, limit: number = 25) {
+  // Create a string key instead of an array to avoid type issues
+  const cacheKey = `anime:seasonal:${year || 'current'}:${season || 'current'}:${page}:${limit}`;
+  
   const { data, error, isLoading } = useSWR(
-    ['anime:seasonal', { year, season, page, limit }],
-    ([url, params]) => fetcher(url, params),
+    cacheKey,
+    () => {
+      const params = { year, season, page, limit };
+      return jikanTsService.getSeasonalAnime(params.year, params.season, params.page, params.limit);
+    },
     {
       revalidateOnFocus: false,
       revalidateIfStale: false,
+      // Always revalidate on mount
+      revalidateOnMount: true,
+      // Added to prevent stale data issues with changing year/season
+      dedupingInterval: 0
     }
   );
 
   return {
     data: data as JikanResponse<AnimeBasic[]> | undefined,
     isLoading,
-    isError: error,
+    isError: error
   };
 }
 

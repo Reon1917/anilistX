@@ -13,38 +13,79 @@ interface JikanTsConfig {
  */
 class JikanTsService {
   private client: JikanClient;
-
+  private cache: Map<string, { data: any, timestamp: number }> = new Map();
+  private pendingRequests: Map<string, Promise<any>> = new Map();
+  private readonly CACHE_TTL = 60000; // 1 minute cache TTL
+  
   constructor(config?: JikanTsConfig) {
     this.client = new JikanClient({
       enableLogging: process.env.NODE_ENV === 'development',
       ...config
     });
   }
+  
+  /**
+   * Helper method to deduplicate requests and cache results
+   */
+  private async dedupRequest<T>(cacheKey: string, requestFn: () => Promise<T>): Promise<T> {
+    // Check if we have a fresh cached result
+    const cachedItem = this.cache.get(cacheKey);
+    if (cachedItem && Date.now() - cachedItem.timestamp < this.CACHE_TTL) {
+      return cachedItem.data as T;
+    }
+    
+    // Check if we already have a pending request for this key
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey) as Promise<T>;
+    }
+    
+    // Otherwise, make a new request
+    const requestPromise = requestFn().then(result => {
+      // Cache the result
+      this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
+      // Remove from pending requests
+      this.pendingRequests.delete(cacheKey);
+      return result;
+    }).catch(error => {
+      // Remove from pending requests on error
+      this.pendingRequests.delete(cacheKey);
+      throw error;
+    });
+    
+    // Store the pending request
+    this.pendingRequests.set(cacheKey, requestPromise);
+    
+    return requestPromise;
+  }
 
   /**
    * Search for anime by various parameters
    */
   async searchAnime(params: SearchParams): Promise<JikanResponse<AnimeBasic[]>> {
+    const cacheKey = `search:${JSON.stringify(params)}`;
+    
     try {
-      const response = await this.client.anime.getAnimeSearch({
-        q: params.q,
-        page: params.page,
-        limit: params.limit,
-        type: params.type as any,
-        status: params.status as any,
-        genres: params.genres,
-        min_score: params.min_score,
-        max_score: params.max_score,
-        sfw: params.sfw,
-        order_by: params.order_by as any,
-        sort: params.sort as any,
-        letter: params.letter,
-        producers: params.producers,
-        start_date: params.start_date,
-        end_date: params.end_date,
+      return await this.dedupRequest(cacheKey, async () => {
+        const response = await this.client.anime.getAnimeSearch({
+          q: params.q,
+          page: params.page,
+          limit: params.limit,
+          type: params.type as any,
+          status: params.status as any,
+          genres: params.genres,
+          min_score: params.min_score,
+          max_score: params.max_score,
+          sfw: params.sfw,
+          order_by: params.order_by as any,
+          sort: params.sort as any,
+          letter: params.letter,
+          producers: params.producers,
+          start_date: params.start_date,
+          end_date: params.end_date,
+        });
+        
+        return response as unknown as JikanResponse<AnimeBasic[]>;
       });
-      
-      return response as unknown as JikanResponse<AnimeBasic[]>;
     } catch (error) {
       console.error('Error searching anime:', error);
       throw error;
@@ -55,9 +96,13 @@ class JikanTsService {
    * Get details of a specific anime by its MAL ID
    */
   async getAnimeById(id: number): Promise<AnimeBasic> {
+    const cacheKey = `anime:${id}`;
+    
     try {
-      const response = await this.client.anime.getAnimeById(id);
-      return response.data as unknown as AnimeBasic;
+      return await this.dedupRequest(cacheKey, async () => {
+        const response = await this.client.anime.getAnimeById(id);
+        return response.data as unknown as AnimeBasic;
+      });
     } catch (error) {
       console.error(`Error fetching anime with ID ${id}:`, error);
       throw error;
@@ -68,17 +113,77 @@ class JikanTsService {
    * Get top anime based on different ranking types
    */
   async getTopAnime(filter: string = '', page: number = 1, limit: number = 25): Promise<JikanResponse<AnimeBasic[]>> {
+    const cacheKey = `top:${filter}:${page}:${limit}`;
+    
     try {
-      const params: any = { page, limit };
-      if (filter) {
-        params.filter = filter;
-      }
-      
-      const response = await this.client.top.getTopAnime(params);
-      return response as unknown as JikanResponse<AnimeBasic[]>;
+      return await this.dedupRequest(cacheKey, async () => {
+        const params: any = { page, limit };
+        if (filter) {
+          params.filter = filter;
+        }
+        
+        // Add retry logic to handle temporary API failures
+        const maxRetries = 3;
+        let retryCount = 0;
+        let response;
+        
+        // Add timeout handling
+        const fetchWithTimeout = async (timeoutMs = 5000) => {
+          return Promise.race([
+            executeRequest(),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+            )
+          ]);
+        };
+        
+        const executeRequest = async () => {
+          try {
+            return await this.client.top.getTopAnime(params);
+          } catch (error) {
+            console.error(`Attempt ${retryCount + 1} failed for getTopAnime:`, error);
+            throw error;
+          }
+        };
+        
+        while (retryCount < maxRetries) {
+          try {
+            response = await fetchWithTimeout();
+            break; // Success, exit the retry loop
+          } catch (error) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              console.error(`All ${maxRetries} attempts failed for getTopAnime`);
+              // Return empty data instead of throwing to prevent UI issues
+              return { 
+                data: [], 
+                pagination: { 
+                  has_next_page: false, 
+                  current_page: page,
+                  last_visible_page: 1,
+                  items: { count: 0, total: 0, per_page: limit }
+                } 
+              };
+            }
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+          }
+        }
+        
+        return response as unknown as JikanResponse<AnimeBasic[]>;
+      });
     } catch (error) {
       console.error('Error fetching top anime:', error);
-      throw error;
+      // Return empty data instead of throwing
+      return { 
+        data: [], 
+        pagination: { 
+          has_next_page: false, 
+          current_page: page,
+          last_visible_page: 1,
+          items: { count: 0, total: 0, per_page: limit }
+        } 
+      };
     }
   }
 
@@ -86,35 +191,81 @@ class JikanTsService {
    * Get seasonal anime
    */
   async getSeasonalAnime(year?: number, season?: string, page: number = 1, limit: number = 25): Promise<JikanResponse<AnimeBasic[]>> {
+    const cacheKey = `seasonal:${year || 'current'}:${season || 'current'}:${page}:${limit}`;
+    
     try {
-      let response;
-      const params = { page, limit };
-      
-      if (year && season) {
-        // Get specific season
-        try {
-          response = await this.client.seasons.getSeason(year, season as any, params);
-        } catch (e) {
-          console.error('Failed to get season:', e);
-          // Fallback to empty response
-          response = { data: [], pagination: { has_next_page: false, current_page: 1 } };
+      return await this.dedupRequest(cacheKey, async () => {
+        let response;
+        const params = { page, limit };
+        
+        // Add retry logic to handle temporary API failures
+        const maxRetries = 3;
+        let retryCount = 0;
+        
+        // Add timeout handling
+        const fetchWithTimeout = async (timeoutMs = 5000) => {
+          return Promise.race([
+            executeRequest(),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+            )
+          ]);
+        };
+        
+        const executeRequest = async () => {
+          try {
+            if (year && season) {
+              // Get specific season
+              return await this.client.seasons.getSeason(year, season as any, params);
+            } else {
+              // Get current season
+              return await this.client.seasons.getSeasonNow(params);
+            }
+          } catch (error) {
+            console.error(`Attempt ${retryCount + 1} failed:`, error);
+            throw error;
+          }
+        };
+        
+        while (retryCount < maxRetries) {
+          try {
+            response = await fetchWithTimeout();
+            break; // Success, exit the retry loop
+          } catch (error) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              console.error(`All ${maxRetries} attempts failed for getSeasonalAnime`);
+              // Return empty data instead of throwing to prevent UI issues
+              return { 
+                data: [], 
+                pagination: { 
+                  has_next_page: false, 
+                  current_page: page,
+                  last_visible_page: 1,
+                  items: { count: 0, total: 0, per_page: limit }
+                } 
+              };
+            }
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+          }
         }
-      } else {
-        // Get current season
-        try {
-          // According to the API docs, this is the correct method name
-          response = await this.client.seasons.getSeasonNow(params);
-        } catch (e) {
-          console.error('Failed to get current season:', e);
-          // Fallback to empty response
-          response = { data: [], pagination: { has_next_page: false, current_page: 1 } };
-        }
-      }
-      
-      return response as unknown as JikanResponse<AnimeBasic[]>;
+        
+        // Type assertion for response
+        return response as unknown as JikanResponse<AnimeBasic[]>;
+      });
     } catch (error) {
       console.error('Error fetching seasonal anime:', error);
-      throw error;
+      // Return empty data instead of throwing
+      return { 
+        data: [], 
+        pagination: { 
+          has_next_page: false, 
+          current_page: page,
+          last_visible_page: 1,
+          items: { count: 0, total: 0, per_page: limit }
+        } 
+      };
     }
   }
 

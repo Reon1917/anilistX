@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTopAnime } from "@/lib/hooks-wrapper";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
@@ -31,6 +31,11 @@ export default function TopAnimePage() {
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   
+  // Loading timeout handling
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const [retryCount, setRetryCount] = useState(0);
+  
   // Map tabs to filter values
   const getFilterValue = () => {
     if (activeTab === "bypopularity") return "bypopularity";
@@ -38,7 +43,42 @@ export default function TopAnimePage() {
     return filter === "all" ? "" : filter;
   };
   
-  const { data, isLoading, isError } = useTopAnime(getFilterValue(), page);
+  const { data, isLoading, isError, refresh } = useTopAnime(getFilterValue(), page, 25, retryCount);
+  
+  // Setup loading timeout to detect stuck loading states
+  useEffect(() => {
+    if (isLoading) {
+      // Clear any existing timeout
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      
+      // Set a new timeout to auto-retry if loading takes too long
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('Loading timeout - auto retrying...');
+        setRetryCount(prev => prev + 1);
+      }, 10000); // 10 seconds timeout
+    } else {
+      // Clear timeout when not loading
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [isLoading]);
+  
+  // Function to retry fetching data
+  const handleRetry = useCallback(() => {
+    setRetryCount(prev => prev + 1);
+    refresh();
+  }, [refresh]);
   
   const handleFilterChange = (value: string) => {
     setFilter(value);
@@ -107,7 +147,7 @@ export default function TopAnimePage() {
           <p className="text-muted-foreground mb-4">
             There was an error loading the top anime. Please try again.
           </p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
+          <Button onClick={handleRetry}>Retry</Button>
         </div>
       );
     }
