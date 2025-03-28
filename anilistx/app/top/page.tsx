@@ -154,7 +154,7 @@ export default function TopAnimePage() {
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {data.data.map((anime, index) => (
-            <div key={anime.mal_id} className="relative">
+            <div key={`${anime.mal_id}-${index}`} className="relative">
               {page === 1 && (
                 <div className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
                   {index + 1}

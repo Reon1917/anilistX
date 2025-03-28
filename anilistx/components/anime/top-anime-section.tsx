@@ -21,8 +21,8 @@ export function TopAnimeSection() {
         ? Array(10)
             .fill(null)
             .map((_, index) => <AnimeCardSkeleton key={index} />)
-        : data?.data.map((anime) => (
-            <AnimeCard key={anime.mal_id} anime={anime} size="md" />
+        : data?.data.map((anime, index) => (
+            <AnimeCard key={`${anime.mal_id}-${index}`} anime={anime} size="md" />
           ))}
     </div>
   );
