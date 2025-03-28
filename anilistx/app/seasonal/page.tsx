@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSeasonalAnime } from "@/lib/hooks";
+import { useSeasonalAnime } from "@/lib/hooks-wrapper";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
 import { Button } from "@/components/ui/button";
