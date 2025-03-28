@@ -23,7 +23,7 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- Anime Lists Table
+-- Anime Lists Table (Enhanced with score)
 CREATE TABLE anime_lists (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) NOT NULL,
@@ -31,10 +31,50 @@ CREATE TABLE anime_lists (
   status TEXT NOT NULL CHECK (status IN ('watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch')),
   score INTEGER CHECK (score >= 0 AND score <= 10),
   episodes_watched INTEGER DEFAULT 0,
+  is_rewatching BOOLEAN DEFAULT false,
+  times_rewatched INTEGER DEFAULT 0,
+  start_date DATE,
+  finish_date DATE,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(user_id, anime_id)
+);
+
+-- User Reviews Table
+CREATE TABLE user_reviews (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  anime_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  review_text TEXT NOT NULL,
+  score INTEGER CHECK (score >= 0 AND score <= 10) NOT NULL,
+  contains_spoilers BOOLEAN DEFAULT false,
+  is_approved BOOLEAN DEFAULT true,
+  helpful_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(user_id, anime_id)
+);
+
+-- Review Helpfulness Ratings
+CREATE TABLE review_ratings (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  review_id UUID REFERENCES user_reviews(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  is_helpful BOOLEAN NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(review_id, user_id)
+);
+
+-- Review Comments
+CREATE TABLE review_comments (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  review_id UUID REFERENCES user_reviews(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  comment_text TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- User Preferences Table
@@ -116,6 +156,63 @@ CREATE POLICY "Users can delete from their own lists"
   ON anime_lists FOR DELETE
   USING (auth.uid() = user_id);
 
+-- User Reviews RLS
+ALTER TABLE user_reviews ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved reviews"
+  ON user_reviews FOR SELECT
+  USING (is_approved = true OR auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own reviews"
+  ON user_reviews FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own reviews"
+  ON user_reviews FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own reviews"
+  ON user_reviews FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Review Ratings RLS
+ALTER TABLE review_ratings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view review ratings"
+  ON review_ratings FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can rate reviews"
+  ON review_ratings FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own ratings"
+  ON review_ratings FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own ratings"
+  ON review_ratings FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Review Comments RLS
+ALTER TABLE review_comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view review comments"
+  ON review_comments FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can create review comments"
+  ON review_comments FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own comments"
+  ON review_comments FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own comments"
+  ON review_comments FOR DELETE
+  USING (auth.uid() = user_id);
+
 -- User Preferences RLS
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 
@@ -178,3 +275,22 @@ CREATE POLICY "Users can delete items from their own custom lists"
       AND custom_lists.user_id = auth.uid()
     )
   );
+
+-- Function to update helpful count on reviews
+CREATE OR REPLACE FUNCTION update_review_helpful_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE user_reviews
+  SET helpful_count = (
+    SELECT COUNT(*) FROM review_ratings
+    WHERE review_id = NEW.review_id AND is_helpful = true
+  )
+  WHERE id = NEW.review_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update helpful count when ratings change
+CREATE TRIGGER on_review_rating_change
+  AFTER INSERT OR UPDATE OR DELETE ON review_ratings
+  FOR EACH ROW EXECUTE PROCEDURE update_review_helpful_count();

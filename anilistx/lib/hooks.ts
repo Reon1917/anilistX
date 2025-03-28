@@ -1,132 +1,192 @@
 import useSWR from 'swr';
 import useSWRInfinite from 'swr/infinite';
-import jikanService, { SearchParams, AnimeBasic, JikanResponse } from './jikan';
+import jikanTsService from './jikan-axios';
+import { AnimeBasic, JikanResponse, SearchParams } from './jikan';
 
-// Fetcher function for SWR
-const fetcher = async (url: string, params: any) => {
-  const [endpoint, method] = url.split(':');
+// This is the fetcher function that will be used by SWR
+const fetcher = async (key: string, ...args: any[]) => {
+  // Extract the method name from the key
+  const [method, ...params] = key.split(':');
   
-  switch (endpoint) {
-    case 'anime':
-      switch (method) {
-        case 'search':
-          return jikanService.searchAnime(params);
-        case 'id':
-          return jikanService.getAnimeById(Number(params.id));
-        case 'top':
-          return jikanService.getTopAnime(params.filter, params.page, params.limit);
-        case 'seasonal':
-          return jikanService.getSeasonalAnime(params.year, params.season, params.page, params.limit);
-        case 'recommendations':
-          return jikanService.getAnimeRecommendations(Number(params.id), params.page, params.limit);
-        default:
-          throw new Error(`Unknown method: ${method}`);
-      }
-    case 'genres':
-      return jikanService.getGenres();
-    default:
-      throw new Error(`Unknown endpoint: ${endpoint}`);
+  try {
+    // Call the corresponding method on jikanTsService
+    switch (method) {
+      case 'searchAnime':
+        return await jikanTsService.searchAnime(args[0] as SearchParams);
+      case 'getAnimeById':
+        return await jikanTsService.getAnimeById(Number(params[0]));
+      case 'getTopAnime':
+        return await jikanTsService.getTopAnime(params[0], args[0], args[1]);
+      case 'getSeasonalAnime':
+        if (params.length === 2) {
+          return await jikanTsService.getSeasonalAnime(Number(params[0]), params[1], args[0], args[1]);
+        } else {
+          return await jikanTsService.getSeasonalAnime(undefined, undefined, args[0], args[1]);
+        }
+      case 'getAnimeRecommendations':
+        return await jikanTsService.getAnimeRecommendations(Number(params[0]), args[0], args[1]);
+      case 'getGenres':
+        return await jikanTsService.getGenres();
+      case 'getAnimeByGenre':
+        return await jikanTsService.getAnimeByGenre(Number(params[0]), args[0], args[1]);
+      case 'searchAnimeByText':
+        return await jikanTsService.searchAnimeByText(params[0], args[0], args[1]);
+      default:
+        throw new Error(`Unknown method: ${method}`);
+    }
+  } catch (error) {
+    console.error(`Error in fetcher for method ${method}:`, error);
+    throw error;
   }
 };
 
 /**
- * Hook for searching anime
+ * Search for anime with various parameters
  */
-export function useAnimeSearch(params: SearchParams = {}, shouldFetch: boolean = true) {
-  const { data, error, isLoading, mutate } = useSWR(
-    shouldFetch ? ['anime:search', params] : null,
-    ([url, params]) => fetcher(url, params),
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
-    }
+export function useSearchAnime(params: SearchParams) {
+  const { data, error, isLoading } = useSWR(
+    ['searchAnime', params],
+    () => fetcher('searchAnime', params)
   );
-
+  
   return {
-    data: data as JikanResponse<AnimeBasic[]> | undefined,
+    anime: data?.data as AnimeBasic[] | undefined,
+    pagination: data?.pagination,
     isLoading,
-    isError: error,
-    mutate,
+    isError: error
   };
 }
 
 /**
- * Hook for getting anime by ID
+ * Get details about a specific anime by ID
  */
-export function useAnimeById(id: number | null) {
+export function useAnime(id: number) {
   const { data, error, isLoading } = useSWR(
-    id ? ['anime:id', { id }] : null,
-    ([url, params]) => fetcher(url, params),
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
-    }
+    id ? `getAnimeById:${id}` : null,
+    (key) => fetcher(key as string)
   );
-
+  
   return {
     anime: data as AnimeBasic | undefined,
     isLoading,
-    isError: error,
+    isError: error
   };
 }
 
 /**
- * Hook for getting top anime
+ * Get top anime with optional filtering
  */
 export function useTopAnime(filter: string = '', page: number = 1, limit: number = 25) {
+  const key = `getTopAnime:${filter}`;
   const { data, error, isLoading } = useSWR(
-    ['anime:top', { filter, page, limit }],
-    ([url, params]) => fetcher(url, params),
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
-    }
+    key,
+    (key) => fetcher(key as string, page, limit)
   );
-
+  
   return {
-    data: data as JikanResponse<AnimeBasic[]> | undefined,
+    anime: data?.data as AnimeBasic[] | undefined,
+    pagination: data?.pagination,
     isLoading,
-    isError: error,
+    isError: error
   };
 }
 
 /**
- * Hook for getting seasonal anime
+ * Get seasonal anime
  */
-export function useSeasonalAnime(year?: number, season?: string, page: number = 1, limit: number = 25) {
+export function useSeasonalAnime(
+  year?: number,
+  season?: string,
+  page: number = 1,
+  limit: number = 25
+) {
+  const key = year && season
+    ? `getSeasonalAnime:${year}:${season}`
+    : 'getSeasonalAnime';
+    
   const { data, error, isLoading } = useSWR(
-    ['anime:seasonal', { year, season, page, limit }],
-    ([url, params]) => fetcher(url, params),
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
-    }
+    key,
+    (key) => fetcher(key as string, page, limit)
   );
-
+  
   return {
-    data: data as JikanResponse<AnimeBasic[]> | undefined,
+    anime: data?.data as AnimeBasic[] | undefined,
+    pagination: data?.pagination,
     isLoading,
-    isError: error,
+    isError: error
   };
 }
 
 /**
- * Hook for getting anime genres
+ * Get anime recommendations for a specific anime
  */
-export function useAnimeGenres() {
+export function useAnimeRecommendations(id: number, page: number = 1, limit: number = 25) {
+  const key = id ? `getAnimeRecommendations:${id}` : null;
   const { data, error, isLoading } = useSWR(
-    'genres',
-    (url) => fetcher(url, {}),
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
-    }
+    key,
+    (key) => key ? fetcher(key as string, page, limit) : null
   );
+  
+  return {
+    recommendations: data?.data || [],
+    pagination: data?.pagination,
+    isLoading,
+    isError: error
+  };
+}
 
+/**
+ * Get anime genres
+ */
+export function useGenres() {
+  const { data, error, isLoading } = useSWR(
+    'getGenres',
+    (key) => fetcher(key as string)
+  );
+  
   return {
     genres: data?.data || [],
     isLoading,
-    isError: error,
+    isError: error
+  };
+}
+
+/**
+ * Get anime by genre id
+ */
+export function useAnimeByGenre(genreId: number, page: number = 1, limit: number = 25) {
+  const key = genreId ? `getAnimeByGenre:${genreId}` : null;
+  const { data, error, isLoading } = useSWR(
+    key,
+    (key) => key ? fetcher(key as string, page, limit) : null
+  );
+  
+  return {
+    anime: data?.data as AnimeBasic[] | undefined,
+    pagination: data?.pagination,
+    isLoading,
+    isError: error
+  };
+}
+
+/**
+ * Search anime by text query
+ */
+export function useAnimeSearch(query: string, page: number = 1, limit: number = 25) {
+  // Only start searching when the query has at least 3 characters
+  const shouldFetch = query && query.length >= 3;
+  const key = shouldFetch ? `searchAnimeByText:${query}` : null;
+  
+  const { data, error, isLoading } = useSWR(
+    key,
+    (key) => key ? fetcher(key as string, page, limit) : null
+  );
+  
+  return {
+    anime: data?.data as AnimeBasic[] | undefined,
+    pagination: data?.pagination,
+    isLoading: shouldFetch && isLoading,
+    isError: error
   };
 }
 

@@ -127,10 +127,12 @@ class JikanService {
       if (params.end_date) queryParams.end_date = params.end_date;
       
       // Use raw method to directly call the API
-      const response = await jikanjs.raw(['anime'], { 
-        q: params.q || "", 
-        page: params.page || 1,
-        ...queryParams
+      const response = await jikanjs.raw(['anime'], function() {
+        return { 
+          q: params.q || "", 
+          page: params.page || 1,
+          ...queryParams
+        };
       });
       
       return response;
@@ -160,15 +162,19 @@ class JikanService {
     try {
       let response;
       if (filter) {
-        response = await jikanjs.raw(['top', 'anime'], { 
-          page: page,
-          filter: filter,
-          limit: limit
+        response = await jikanjs.raw(['top', 'anime'], function() {
+          return { 
+            page: page,
+            filter: filter,
+            limit: limit
+          };
         });
       } else {
-        response = await jikanjs.raw(['top', 'anime'], { 
-          page: page,
-          limit: limit
+        response = await jikanjs.raw(['top', 'anime'], function() {
+          return { 
+            page: page,
+            limit: limit
+          };
         });
       }
       return response;
@@ -185,15 +191,18 @@ class JikanService {
     try {
       let response;
       if (year && season) {
-        response = await jikanjs.raw(['seasons', year, season], {
-          page: page,
-          limit: limit
+        response = await jikanjs.raw(['seasons', year, season], function() {
+          return {
+            page: page,
+            limit: limit
+          };
         });
       } else {
-        // Default to current season
-        response = await jikanjs.raw(['seasons', 'now'], {
-          page: page,
-          limit: limit
+        response = await jikanjs.raw(['seasons', 'now'], function() {
+          return {
+            page: page,
+            limit: limit
+          };
         });
       }
       return response;
@@ -208,9 +217,11 @@ class JikanService {
    */
   async getAnimeRecommendations(id: number, page: number = 1, limit: number = 25): Promise<any> {
     try {
-      const response = await jikanjs.raw(['anime', id, 'recommendations'], {
-        page: page,
-        limit: limit
+      const response = await jikanjs.raw(['anime', id, 'recommendations'], function() {
+        return {
+          page: page,
+          limit: limit
+        };
       });
       return response;
     } catch (error) {

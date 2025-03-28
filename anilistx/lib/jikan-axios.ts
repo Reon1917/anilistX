@@ -1,6 +1,12 @@
 import { JikanClient } from '@tutkli/jikan-ts';
 import { AnimeBasic, JikanResponse, SearchParams } from './jikan';
 
+interface JikanTsConfig {
+  enableLogging?: boolean;
+  cacheOptions?: any;
+  axiosInstance?: any;
+}
+
 /**
  * Jikan API Service using @tutkli/jikan-ts
  * A utility to interact with the Jikan API (unofficial MyAnimeList API)
@@ -8,9 +14,10 @@ import { AnimeBasic, JikanResponse, SearchParams } from './jikan';
 class JikanTsService {
   private client: JikanClient;
 
-  constructor() {
+  constructor(config?: JikanTsConfig) {
     this.client = new JikanClient({
-      enableLogging: false,
+      enableLogging: process.env.NODE_ENV === 'development',
+      ...config
     });
   }
 
@@ -84,15 +91,24 @@ class JikanTsService {
       const params = { page, limit };
       
       if (year && season) {
-        // Handle specific season - in test mock this is getSeason
-        response = await this.client.seasons.getSeason?.(year, season as any, params) 
-          || this.client.seasons.getSeasonsList?.(params) 
-          || { data: [], pagination: { has_next_page: false, current_page: 1 } };
+        // Get specific season
+        try {
+          response = await this.client.seasons.getSeason(year, season as any, params);
+        } catch (e) {
+          console.error('Failed to get season:', e);
+          // Fallback to empty response
+          response = { data: [], pagination: { has_next_page: false, current_page: 1 } };
+        }
       } else {
-        // Handle current season - in test mock this is getNow
-        response = await this.client.seasons.getNow?.(params) 
-          || this.client.seasons.getCurrentSeason?.(params) 
-          || { data: [], pagination: { has_next_page: false, current_page: 1 } };
+        // Get current season
+        try {
+          // According to the API docs, this is the correct method name
+          response = await this.client.seasons.getSeasonNow(params);
+        } catch (e) {
+          console.error('Failed to get current season:', e);
+          // Fallback to empty response
+          response = { data: [], pagination: { has_next_page: false, current_page: 1 } };
+        }
       }
       
       return response as unknown as JikanResponse<AnimeBasic[]>;
@@ -107,13 +123,12 @@ class JikanTsService {
    */
   async getAnimeRecommendations(id: number, page: number = 1, limit: number = 25): Promise<any> {
     try {
-      // Some APIs expect params separately, others as object
-      const params = { page, limit };
       try {
-        return await this.client.anime.getAnimeRecommendations(id, params);
-      } catch (e) {
-        // Fallback to single parameter
         return await this.client.anime.getAnimeRecommendations(id);
+      } catch (e) {
+        console.error('Failed to get recommendations:', e);
+        // Fallback to empty response
+        return { data: [] };
       }
     } catch (error) {
       console.error(`Error fetching recommendations for anime ${id}:`, error);
@@ -126,10 +141,45 @@ class JikanTsService {
    */
   async getGenres(): Promise<any> {
     try {
-      const response = await this.client.genres.getAnimeGenres();
-      return response;
+      return await this.client.genres.getAnimeGenres();
     } catch (error) {
       console.error('Error fetching anime genres:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get anime by genre
+   */
+  async getAnimeByGenre(genreId: number, page: number = 1, limit: number = 25): Promise<JikanResponse<AnimeBasic[]>> {
+    try {
+      const response = await this.searchAnime({
+        genres: String(genreId),
+        page,
+        limit
+      });
+      
+      return response;
+    } catch (error) {
+      console.error(`Error fetching anime by genre ${genreId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search anime by free text
+   */
+  async searchAnimeByText(text: string, page: number = 1, limit: number = 25): Promise<JikanResponse<AnimeBasic[]>> {
+    try {
+      const response = await this.searchAnime({
+        q: text,
+        page,
+        limit
+      });
+      
+      return response;
+    } catch (error) {
+      console.error(`Error searching anime with text "${text}":`, error);
       throw error;
     }
   }

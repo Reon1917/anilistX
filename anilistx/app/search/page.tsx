@@ -1,234 +1,128 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useAnimeSearch } from "@/lib/hooks";
-import { AnimeCard } from "@/components/anime/anime-card";
-import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
-import { SearchFilters } from "@/components/anime/search-filters";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { SearchBar } from '@/components/search/search-bar';
+import { useAnimeSearch } from '@/lib/hooks';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Heart } from 'lucide-react';
+
+// Define the anime item type
+interface AnimeItem {
+  mal_id: number;
+  title: string;
+  images: {
+    jpg: {
+      image_url: string;
+      large_image_url?: string;
+    }
+  };
+  score?: number;
+  type?: string;
+  episodes?: number;
+  status?: string;
+}
 
 export default function SearchPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const query = searchParams.get('q') || '';
+  const [currentQuery, setCurrentQuery] = useState(query);
   
-  const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [type, setType] = useState(searchParams.get("type") || "");
-  const [status, setStatus] = useState(searchParams.get("status") || "");
-  const [genres, setGenres] = useState(searchParams.get("genres") || "");
-  const [minScore, setMinScore] = useState(searchParams.get("min_score") || "");
-  const [orderBy, setOrderBy] = useState(searchParams.get("order_by") || "score");
-  const [sort, setSort] = useState(searchParams.get("sort") || "desc");
-  const [page, setPage] = useState(Number(searchParams.get("page") || 1));
+  // Reset current query when URL param changes
+  useEffect(() => {
+    setCurrentQuery(query);
+  }, [query]);
   
-  // Check if there are any search params
-  const hasSearchParams = searchParams.toString().length > 0;
-  
-  // Build the search params
-  const searchQueryParams = {
-    q: query,
-    type: type,
-    status: status,
-    genres: genres,
-    min_score: minScore ? Number(minScore) : undefined,
-    order_by: orderBy,
-    sort: sort as "desc" | "asc",
-    page: page,
-    limit: 24,
-  };
-  
-  const { data, isLoading, isError } = useAnimeSearch(
-    hasSearchParams ? searchQueryParams : { limit: 24 },
-    hasSearchParams
-  );
-  
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Build the URL params
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (type) params.set("type", type);
-    if (status) params.set("status", status);
-    if (genres) params.set("genres", genres);
-    if (minScore) params.set("min_score", minScore);
-    if (orderBy !== "score") params.set("order_by", orderBy);
-    if (sort !== "desc") params.set("sort", sort);
-    if (page !== 1) params.set("page", page.toString());
-    
-    // Navigate to the new URL
-    router.push(`/search?${params.toString()}`);
-  };
-  
-  const handleReset = () => {
-    setQuery("");
-    setType("");
-    setStatus("");
-    setGenres("");
-    setMinScore("");
-    setOrderBy("score");
-    setSort("desc");
-    setPage(1);
-    router.push("/search");
-  };
-  
-  const handlePageChange = (newPage: number) => {
-    const current = new URLSearchParams(searchParams.toString());
-    current.set("page", newPage.toString());
-    setPage(newPage);
-    router.push(`/search?${current.toString()}`);
-  };
+  const { anime, isLoading, isError } = useAnimeSearch(currentQuery);
   
   return (
-    <div className="flex flex-col gap-8">
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold">Search Anime</h1>
-        <p className="text-muted-foreground">Find your favorite anime with advanced filtering.</p>
+    <main className="container py-8">
+      <div className="mb-8">
+        <SearchBar />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Filters */}
-        <div className="space-y-6">
-          <div className="rounded-lg border bg-card p-4">
-            <form onSubmit={handleSearch} className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="font-medium">Search</h3>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search anime..."
-                    className="pl-8"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <SearchFilters
-                type={type}
-                setType={setType}
-                status={status}
-                setStatus={setStatus}
-                genres={genres}
-                setGenres={setGenres}
-                minScore={minScore}
-                setMinScore={setMinScore}
-                orderBy={orderBy}
-                setOrderBy={setOrderBy}
-                sort={sort}
-                setSort={setSort}
-              />
-              
-              <div className="flex flex-col gap-2">
-                <Button type="submit">Apply Filters</Button>
-                <Button type="button" variant="outline" onClick={handleReset}>
-                  Reset Filters
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-        
-        {/* Results */}
-        <div className="lg:col-span-3 space-y-6">
-          {isError ? (
-            <div className="bg-card rounded-lg p-8 text-center">
-              <h3 className="text-xl font-medium mb-2">Error loading results</h3>
-              <p className="text-muted-foreground mb-4">
-                There was an error loading the search results. Please try again.
-              </p>
-              <Button onClick={handleSearch}>Retry</Button>
-            </div>
-          ) : isLoading ? (
-            <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Loading results...</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {Array(12)
-                  .fill(null)
-                  .map((_, index) => (
-                    <AnimeCardSkeleton key={index} />
-                  ))}
-              </div>
-            </>
-          ) : data && data.data.length > 0 ? (
-            <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">
-                  {data.pagination.items.total.toLocaleString()} Results
-                </h2>
-                <div className="text-sm text-muted-foreground">
-                  Page {data.pagination.current_page} of {data.pagination.last_visible_page}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {data.data.map((anime) => (
-                  <AnimeCard key={anime.mal_id} anime={anime} />
-                ))}
-              </div>
-              
-              {/* Pagination */}
-              {data.pagination.last_visible_page > 1 && (
-                <div className="flex justify-center gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => handlePageChange(data.pagination.current_page - 1)}
-                    disabled={data.pagination.current_page === 1}
-                  >
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, data.pagination.last_visible_page) }, (_, i) => {
-                      const pageNum = i + 1;
-                      return (
-                        <Button
-                          key={i}
-                          variant={pageNum === data.pagination.current_page ? "default" : "outline"}
-                          className="w-10"
-                          onClick={() => handlePageChange(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                    {data.pagination.last_visible_page > 5 && <span className="px-2">...</span>}
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => handlePageChange(data.pagination.current_page + 1)}
-                    disabled={data.pagination.current_page === data.pagination.last_visible_page}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="bg-card rounded-lg p-8 text-center">
-              {hasSearchParams ? (
-                <>
-                  <h3 className="text-xl font-medium mb-2">No results found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    We couldn't find any anime matching your search criteria. Try adjusting your filters.
-                  </p>
-                  <Button onClick={handleReset}>Reset Filters</Button>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-xl font-medium mb-2">Start searching</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Enter a search term or apply filters to find anime.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">Search Results for "{query}"</h1>
+        <p className="text-muted-foreground">
+          {!isLoading && anime ? `Found ${anime.length} results` : 'Searching...'}
+        </p>
       </div>
-    </div>
+      
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <div className="aspect-[3/4] relative">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <CardContent className="p-3">
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-3 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="text-center py-12">
+          <p className="text-xl font-semibold mb-2">Failed to load search results</p>
+          <p className="text-muted-foreground mb-6">Please try again later</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      ) : anime && anime.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {anime.map((item: AnimeItem) => (
+            <Card key={item.mal_id} className="overflow-hidden transition-all hover:shadow-md">
+              <Link href={`/anime/${item.mal_id}`} className="block">
+                <div className="aspect-[3/4] relative">
+                  <Image
+                    src={item.images.jpg.large_image_url || item.images.jpg.image_url}
+                    alt={item.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  />
+                  {item.score && (
+                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-semibold py-1 px-2 rounded">
+                      ★ {item.score}
+                    </div>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background/90"
+                  >
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Link>
+              <CardContent className="p-3">
+                <Link href={`/anime/${item.mal_id}`} className="block">
+                  <h3 className="font-medium line-clamp-2 hover:text-primary transition-colors">
+                    {item.title}
+                  </h3>
+                </Link>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-muted-foreground">
+                    {item.type} • {item.episodes ? `${item.episodes} eps` : 'Unknown eps'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {item.status === 'Currently Airing' ? 'Airing' : item.status}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-xl font-semibold mb-2">No results found</p>
+          <p className="text-muted-foreground mb-6">Try a different search term</p>
+        </div>
+      )}
+    </main>
   );
 } 
