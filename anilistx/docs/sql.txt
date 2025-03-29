@@ -415,9 +415,22 @@ CREATE POLICY "Users can view their own analytics or public analytics"
     )
   );
 
-CREATE POLICY "System can update analytics"
+-- Add INSERT policy to allow users to create their own record
+CREATE POLICY "Users can insert their own analytics record"
+  ON user_analytics FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+  
+-- Update UPDATE policy for better security
+-- DROP POLICY IF EXISTS "System can update analytics" ON user_analytics; -- Optional: drop old policy first if needed
+CREATE POLICY "Users can update their own analytics record"
   ON user_analytics FOR UPDATE
-  USING (true);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Add DELETE policy for completeness
+CREATE POLICY "Users can delete their own analytics record"
+  ON user_analytics FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- User Follows RLS
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
