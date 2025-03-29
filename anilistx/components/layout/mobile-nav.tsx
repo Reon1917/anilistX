@@ -100,7 +100,7 @@ export function MobileNav({ user, signOut }: MobileNavProps) {
             ) : (
               <>
                 <Link
-                  href="/sign-in"
+                  href="/login"
                   onClick={closeNav}
                   className="transition-colors hover:text-primary"
                 >
