@@ -5,6 +5,8 @@ import { HeaderAuth } from "@/components/layout/header-auth";
 import { Footer } from "@/components/layout/footer";
 import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { EnvVarWarning } from "@/components/env-var-warning";
+import { ToastProvider } from "@/components/ui/toast-provider";
+import { Toaster } from "@/components/ui/toast";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -46,19 +48,22 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex flex-col min-h-screen">
-            <header className="border-b border-border sticky top-0 z-40 bg-background/95 backdrop-blur">
-              <div className="container flex h-16 items-center justify-between">
-                {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
-              </div>
-            </header>
-            
-            <main className="flex-1 container py-6 md:py-10">
-              {children}
-            </main>
+          <ToastProvider>
+            <div className="flex flex-col min-h-screen">
+              <header className="border-b border-border sticky top-0 z-40 bg-background/95 backdrop-blur">
+                <div className="container flex h-16 items-center justify-between">
+                  {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
+                </div>
+              </header>
+              
+              <main className="flex-1 container py-6 md:py-10">
+                {children}
+              </main>
 
-            <Footer />
-          </div>
+              <Footer />
+            </div>
+            <Toaster />
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
