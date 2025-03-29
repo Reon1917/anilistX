@@ -45,7 +45,7 @@ export async function HeaderAuth() {
             </div>
           ) : (
             <div className="flex items-center gap-4">
-              <Link href="/sign-in">
+              <Link href="/login">
                 <Button variant="ghost" size="sm">Login</Button>
               </Link>
               <Link href="/sign-up">

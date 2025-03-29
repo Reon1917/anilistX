@@ -5,6 +5,8 @@ CREATE TABLE user_profiles (
   display_name TEXT,
   avatar_url TEXT,
   bio TEXT,
+  external_links JSONB DEFAULT '{}',  -- For social media links, personal website, etc.
+  is_public BOOLEAN DEFAULT true,     -- Whether profile is publicly viewable
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
@@ -36,9 +38,30 @@ CREATE TABLE anime_lists (
   start_date DATE,
   finish_date DATE,
   notes TEXT,
+  favorite BOOLEAN DEFAULT false, -- Mark as favorite for quick access
+  last_updated TIMESTAMP WITH TIME ZONE DEFAULT now(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(user_id, anime_id)
+);
+
+-- Anime Tags for user-defined tags on anime
+CREATE TABLE anime_tags (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  name TEXT NOT NULL,
+  color TEXT, -- Optional color for the tag
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(user_id, name)
+);
+
+-- Anime Tag Mappings
+CREATE TABLE anime_tag_mappings (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  anime_list_id UUID REFERENCES anime_lists(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES anime_tags(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(anime_list_id, tag_id)
 );
 
 -- User Reviews Table
@@ -85,6 +108,10 @@ CREATE TABLE user_preferences (
   items_per_page INTEGER DEFAULT 24,
   default_list TEXT DEFAULT 'watching',
   privacy_setting TEXT DEFAULT 'public',
+  score_format TEXT DEFAULT 'stars', -- stars, decimal, smiley, etc.
+  title_language TEXT DEFAULT 'romaji', -- romaji, english, native
+  custom_css TEXT, -- For advanced customization
+  analytics_public BOOLEAN DEFAULT false, -- Whether analytics are publicly visible
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
@@ -109,7 +136,10 @@ CREATE TABLE custom_lists (
   user_id UUID REFERENCES auth.users(id) NOT NULL,
   name TEXT NOT NULL,
   description TEXT,
+  cover_image_url TEXT,
+  sort_order TEXT DEFAULT 'custom', -- For sorting items in list
   is_public BOOLEAN DEFAULT true,
+  is_featured BOOLEAN DEFAULT false, -- Feature on profile
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(user_id, name)
@@ -120,8 +150,50 @@ CREATE TABLE custom_list_items (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   custom_list_id UUID REFERENCES custom_lists(id) ON DELETE CASCADE,
   anime_id INTEGER NOT NULL,
+  custom_note TEXT,
+  position INTEGER, -- For manual ordering within the list
   added_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(custom_list_id, anime_id)
+);
+
+-- User Analytics Summary (pre-calculated for performance)
+CREATE TABLE user_analytics (
+  user_id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  total_anime_count INTEGER DEFAULT 0,
+  watching_count INTEGER DEFAULT 0,
+  completed_count INTEGER DEFAULT 0,
+  on_hold_count INTEGER DEFAULT 0,
+  dropped_count INTEGER DEFAULT 0,
+  plan_to_watch_count INTEGER DEFAULT 0,
+  total_episodes_watched INTEGER DEFAULT 0,
+  average_score DECIMAL(3,2),
+  favorite_genres JSONB DEFAULT '[]',
+  top_studios JSONB DEFAULT '[]',
+  watch_history JSONB DEFAULT '[]', -- Recent activity
+  last_calculated TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Friendship/Following System (for social features)
+CREATE TABLE user_follows (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  follower_id UUID REFERENCES auth.users(id) NOT NULL,
+  followed_id UUID REFERENCES auth.users(id) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(follower_id, followed_id),
+  CONSTRAINT no_self_follow CHECK (follower_id != followed_id)
+);
+
+-- Activity Feed
+CREATE TABLE user_activities (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  activity_type TEXT NOT NULL, -- e.g., 'added_anime', 'updated_status', 'wrote_review'
+  anime_id INTEGER,
+  status TEXT,
+  score INTEGER,
+  details JSONB DEFAULT '{}', -- Flexible data structure for different activity types
+  is_public BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- Row Level Security Policies
@@ -129,9 +201,9 @@ CREATE TABLE custom_list_items (
 -- User Profiles RLS
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view any profile"
+CREATE POLICY "Users can view public profiles"
   ON user_profiles FOR SELECT
-  USING (true);
+  USING (is_public OR auth.uid() = id);
 
 CREATE POLICY "Users can update their own profile"
   ON user_profiles FOR UPDATE
@@ -155,6 +227,52 @@ CREATE POLICY "Users can update their own lists"
 CREATE POLICY "Users can delete from their own lists"
   ON anime_lists FOR DELETE
   USING (auth.uid() = user_id);
+
+-- Anime Tags RLS
+ALTER TABLE anime_tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own tags"
+  ON anime_tags FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own tags"
+  ON anime_tags FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own tags"
+  ON anime_tags FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own tags"
+  ON anime_tags FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Anime Tag Mappings RLS
+ALTER TABLE anime_tag_mappings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own tag mappings"
+  ON anime_tag_mappings FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM anime_lists
+    WHERE anime_lists.id = anime_tag_mappings.anime_list_id
+    AND anime_lists.user_id = auth.uid()
+  ));
+
+CREATE POLICY "Users can create their own tag mappings"
+  ON anime_tag_mappings FOR INSERT
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM anime_lists
+    WHERE anime_lists.id = anime_tag_mappings.anime_list_id
+    AND anime_lists.user_id = auth.uid()
+  ));
+
+CREATE POLICY "Users can delete their own tag mappings"
+  ON anime_tag_mappings FOR DELETE
+  USING (EXISTS (
+    SELECT 1 FROM anime_lists
+    WHERE anime_lists.id = anime_tag_mappings.anime_list_id
+    AND anime_lists.user_id = auth.uid()
+  ));
 
 -- User Reviews RLS
 ALTER TABLE user_reviews ENABLE ROW LEVEL SECURITY;
@@ -276,6 +394,58 @@ CREATE POLICY "Users can delete items from their own custom lists"
     )
   );
 
+-- User Analytics RLS
+ALTER TABLE user_analytics ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own analytics or public analytics"
+  ON user_analytics FOR SELECT
+  USING (
+    auth.uid() = user_id OR 
+    EXISTS (
+      SELECT 1 FROM user_preferences 
+      WHERE user_preferences.user_id = user_analytics.user_id 
+      AND user_preferences.analytics_public = true
+    )
+  );
+
+CREATE POLICY "System can update analytics"
+  ON user_analytics FOR UPDATE
+  USING (true);
+
+-- User Follows RLS
+ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view follow relationships"
+  ON user_follows FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can follow others"
+  ON user_follows FOR INSERT
+  WITH CHECK (auth.uid() = follower_id);
+
+CREATE POLICY "Users can unfollow"
+  ON user_follows FOR DELETE
+  USING (auth.uid() = follower_id);
+
+-- User Activities RLS
+ALTER TABLE user_activities ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view public activities"
+  ON user_activities FOR SELECT
+  USING (is_public OR auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own activities"
+  ON user_activities FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own activities"
+  ON user_activities FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own activities"
+  ON user_activities FOR DELETE
+  USING (auth.uid() = user_id);
+
 -- Function to update helpful count on reviews
 CREATE OR REPLACE FUNCTION update_review_helpful_count()
 RETURNS TRIGGER AS $$
@@ -294,3 +464,96 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER on_review_rating_change
   AFTER INSERT OR UPDATE OR DELETE ON review_ratings
   FOR EACH ROW EXECUTE PROCEDURE update_review_helpful_count();
+
+-- Function to update anime list counts in analytics
+CREATE OR REPLACE FUNCTION update_user_analytics()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- If user just got created, insert a new analytics record
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO user_analytics (user_id) VALUES (NEW.user_id)
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+  
+  -- Update the counts
+  UPDATE user_analytics
+  SET 
+    total_anime_count = (SELECT COUNT(*) FROM anime_lists WHERE user_id = NEW.user_id),
+    watching_count = (SELECT COUNT(*) FROM anime_lists WHERE user_id = NEW.user_id AND status = 'watching'),
+    completed_count = (SELECT COUNT(*) FROM anime_lists WHERE user_id = NEW.user_id AND status = 'completed'),
+    on_hold_count = (SELECT COUNT(*) FROM anime_lists WHERE user_id = NEW.user_id AND status = 'on_hold'),
+    dropped_count = (SELECT COUNT(*) FROM anime_lists WHERE user_id = NEW.user_id AND status = 'dropped'),
+    plan_to_watch_count = (SELECT COUNT(*) FROM anime_lists WHERE user_id = NEW.user_id AND status = 'plan_to_watch'),
+    total_episodes_watched = (SELECT COALESCE(SUM(episodes_watched), 0) FROM anime_lists WHERE user_id = NEW.user_id),
+    average_score = (SELECT AVG(score) FROM anime_lists WHERE user_id = NEW.user_id AND score > 0),
+    last_calculated = now()
+  WHERE user_id = NEW.user_id;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update analytics when anime lists change
+CREATE TRIGGER on_anime_list_change
+  AFTER INSERT OR UPDATE OR DELETE ON anime_lists
+  FOR EACH ROW EXECUTE PROCEDURE update_user_analytics();
+
+-- Function to record activity when anime list is updated
+CREATE OR REPLACE FUNCTION record_anime_list_activity()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO user_activities (
+      user_id, 
+      activity_type, 
+      anime_id, 
+      status, 
+      score,
+      details
+    ) VALUES (
+      NEW.user_id, 
+      'added_anime', 
+      NEW.anime_id, 
+      NEW.status, 
+      NEW.score,
+      jsonb_build_object('episodes_watched', NEW.episodes_watched)
+    );
+  ELSIF TG_OP = 'UPDATE' THEN
+    -- Only record if certain fields changed
+    IF OLD.status != NEW.status OR OLD.score != NEW.score OR OLD.episodes_watched != NEW.episodes_watched THEN
+      INSERT INTO user_activities (
+        user_id, 
+        activity_type, 
+        anime_id, 
+        status, 
+        score,
+        details
+      ) VALUES (
+        NEW.user_id, 
+        CASE 
+          WHEN OLD.status != NEW.status THEN 'updated_status'
+          WHEN OLD.score != NEW.score THEN 'updated_score'
+          WHEN OLD.episodes_watched != NEW.episodes_watched THEN 'updated_episodes'
+          ELSE 'updated_anime'
+        END, 
+        NEW.anime_id, 
+        NEW.status, 
+        NEW.score,
+        jsonb_build_object(
+          'episodes_watched', NEW.episodes_watched,
+          'old_status', OLD.status,
+          'old_score', OLD.score,
+          'old_episodes_watched', OLD.episodes_watched
+        )
+      );
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to record activities
+CREATE TRIGGER on_anime_list_activity
+  AFTER INSERT OR UPDATE ON anime_lists
+  FOR EACH ROW EXECUTE PROCEDURE record_anime_list_activity();
