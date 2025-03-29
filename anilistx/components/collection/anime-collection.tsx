@@ -12,6 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -26,9 +27,10 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
+import { EditAnimeDialog } from "./edit-anime-dialog";
 
 type AnimeItem = {
-  id: number;
+  id: string;
   anime_id: number;
   title: string;
   image_url: string;
@@ -36,6 +38,7 @@ type AnimeItem = {
   episodes: number;
   status: string;
   score: number;
+  episodes_watched: number;
   year: number | null;
   studio: string | null;
   mal_score: number | null;
@@ -57,6 +60,8 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
   const [activeTab, setActiveTab] = useState("all");
   const [animeToDelete, setAnimeToDelete] = useState<AnimeItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [animeToEdit, setAnimeToEdit] = useState<AnimeItem | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   
   const router = useRouter();
   const { toast } = useToast();
@@ -95,6 +100,45 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
     } finally {
       setIsDeleting(false);
       setAnimeToDelete(null);
+    }
+  };
+  
+  const handleUpdateAnime = async (updatedStatus: string, updatedScore: number, updatedEpisodesWatched: number) => {
+    if (!animeToEdit) return;
+    
+    setIsEditing(true);
+    
+    try {
+      const updateData = {
+        status: updatedStatus,
+        score: updatedScore,
+        episodes_watched: updatedEpisodesWatched,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("anime_lists")
+        .update(updateData)
+        .eq("id", animeToEdit.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Collection updated",
+        description: `${animeToEdit.title} has been updated.`,
+      });
+      
+      router.refresh();
+      setAnimeToEdit(null);
+    } catch (error) {
+      console.error("Error updating anime:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update anime in your collection.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditing(false);
     }
   };
   
@@ -138,6 +182,11 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setAnimeToEdit(anime)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit Status/Score
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-destructive" onClick={() => setAnimeToDelete(anime)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Remove
@@ -212,6 +261,14 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditAnimeDialog 
+        anime={animeToEdit} 
+        open={!!animeToEdit} 
+        onOpenChange={(open) => !open && setAnimeToEdit(null)}
+        onUpdate={handleUpdateAnime}
+        isUpdating={isEditing}
+      />
     </div>
   );
 } 

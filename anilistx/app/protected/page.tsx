@@ -29,30 +29,26 @@ interface AnimeStats {
 
 export default async function UserDashboardPage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
-
-  if (!session) {
+  if (!user) {
     return redirect("/login");
   }
 
   const { data: profile } = await supabase
     .from("user_profiles")
     .select("*")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
-  // Handle the case where the RPC function might not exist
   let animeStats: AnimeStats | null = null;
   try {
     const { data: stats } = await supabase.rpc("get_user_anime_stats", {
-      user_id_param: session.user.id,
+      user_id_param: user.id,
     }).maybeSingle();
     animeStats = stats as AnimeStats;
   } catch (error) {
     console.error("Error fetching anime stats:", error);
-    // Default values for stats
     animeStats = {
       total_anime: 0,
       watching: 0,
@@ -68,7 +64,7 @@ export default async function UserDashboardPage() {
   const { data: recentActivity, error: activityError } = await supabase
     .from("anime_lists")
     .select("*")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(5);
 
@@ -80,7 +76,7 @@ export default async function UserDashboardPage() {
             <div className="relative h-32 w-32 rounded-full overflow-hidden">
               <Image
                 src={profile.avatar_url}
-                alt={profile?.username || session.user.email || "User"}
+                alt={profile?.username || user.email || "User"}
                 fill
                 className="object-cover"
               />
@@ -93,7 +89,7 @@ export default async function UserDashboardPage() {
           
           <div className="text-center">
             <h2 className="text-xl font-semibold">{profile?.username || "User"}</h2>
-            <p className="text-sm text-muted-foreground">{session.user.email}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
           
           <div className="w-full border-t border-border my-2"></div>

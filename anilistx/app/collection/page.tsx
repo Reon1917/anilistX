@@ -13,17 +13,16 @@ export const metadata: Metadata = {
 export default async function CollectionPage() {
   const supabase = await createClient();
   
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!session) {
+  if (!user) {
     redirect("/login?callbackUrl=/collection");
   }
   
   const { data: animeList, error } = await supabase
     .from("anime_lists")
     .select("*")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
   
   if (error) {
