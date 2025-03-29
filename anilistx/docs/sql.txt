@@ -30,6 +30,10 @@ CREATE TABLE anime_lists (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) NOT NULL,
   anime_id INTEGER NOT NULL, -- MAL ID from Jikan API
+  title TEXT NOT NULL, -- Anime title
+  image_url TEXT, -- Anime cover image URL
+  type TEXT, -- Anime type (TV, Movie, OVA, etc.)
+  episodes INTEGER, -- Total number of episodes
   status TEXT NOT NULL CHECK (status IN ('watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch')),
   score INTEGER CHECK (score >= 0 AND score <= 10),
   episodes_watched INTEGER DEFAULT 0,
@@ -39,6 +43,9 @@ CREATE TABLE anime_lists (
   finish_date DATE,
   notes TEXT,
   favorite BOOLEAN DEFAULT false, -- Mark as favorite for quick access
+  year INTEGER, -- Year of release
+  studio TEXT, -- Main studio
+  mal_score NUMERIC(3,2), -- Score from MyAnimeList
   last_updated TIMESTAMP WITH TIME ZONE DEFAULT now(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),

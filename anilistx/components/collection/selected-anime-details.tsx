@@ -17,12 +17,14 @@ type SelectedAnimeDetailsProps = {
   anime: any;
   onBack: () => void;
   onAdd: (status: string, score: number) => void;
+  isAdding?: boolean;
 };
 
 export function SelectedAnimeDetails({
   anime,
   onBack,
   onAdd,
+  isAdding = false,
 }: SelectedAnimeDetailsProps) {
   const [status, setStatus] = useState("watching");
   const [score, setScore] = useState(0);
@@ -34,6 +36,7 @@ export function SelectedAnimeDetails({
         size="sm"
         className="pl-0 text-muted-foreground"
         onClick={onBack}
+        disabled={isAdding}
       >
         <ChevronLeft className="mr-1 h-4 w-4" />
         Back to search
@@ -50,9 +53,9 @@ export function SelectedAnimeDetails({
         </div>
         
         <div className="flex-1">
-          <h2 className="text-xl font-semibold">{anime.title}</h2>
+          <h3 className="text-xl font-semibold">{anime.title}</h3>
           <p className="text-sm text-muted-foreground">
-            {anime.studios.length > 0 && anime.studios[0].name}
+            {anime.studios && anime.studios.length > 0 && anime.studios[0].name}
             {anime.year && ` • ${anime.year}`}
             {anime.episodes && ` • ${anime.episodes} episodes`}
           </p>
@@ -73,7 +76,7 @@ export function SelectedAnimeDetails({
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Status</label>
-          <Select value={status} onValueChange={setStatus}>
+          <Select value={status} onValueChange={setStatus} disabled={isAdding}>
             <SelectTrigger>
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
@@ -89,7 +92,7 @@ export function SelectedAnimeDetails({
         
         <div className="space-y-2">
           <label className="text-sm font-medium">Score</label>
-          <Select value={score.toString()} onValueChange={(val) => setScore(parseInt(val))}>
+          <Select value={score.toString()} onValueChange={(val) => setScore(parseInt(val))} disabled={isAdding}>
             <SelectTrigger>
               <SelectValue placeholder="Select score" />
             </SelectTrigger>
@@ -110,8 +113,8 @@ export function SelectedAnimeDetails({
         </div>
       </div>
       
-      <Button className="w-full" onClick={() => onAdd(status, score)}>
-        Add to Collection
+      <Button className="w-full" onClick={() => onAdd(status, score)} disabled={isAdding}>
+        {isAdding ? "Adding..." : "Add to Collection"}
       </Button>
     </div>
   );

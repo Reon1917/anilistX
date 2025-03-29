@@ -13,26 +13,57 @@ export const metadata: Metadata = {
   description: "Manage your anime collection and profile settings",
 };
 
-export default async function UserDashboardPage() {
-  const supabase = createClient();
+// Define the type for our anime stats
+interface AnimeStats {
+  total_anime: number;
+  watching: number;
+  completed: number;
+  on_hold: number;
+  dropped: number;
+  plan_to_watch: number;
+  total_episodes: number;
+  average_score: number;
+  highest_score?: number;
+  [key: string]: any; // For any additional properties
+}
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+export default async function UserDashboardPage() {
+  const supabase = await createClient();
+
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
 
   if (!session) {
     return redirect("/login");
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("user_profiles")
     .select("*")
     .eq("id", session.user.id)
     .single();
 
-  const { data: animeStats } = await supabase.rpc("get_user_anime_stats", {
-    user_id_param: session.user.id,
-  }).maybeSingle();
+  // Handle the case where the RPC function might not exist
+  let animeStats: AnimeStats | null = null;
+  try {
+    const { data: stats } = await supabase.rpc("get_user_anime_stats", {
+      user_id_param: session.user.id,
+    }).maybeSingle();
+    animeStats = stats as AnimeStats;
+  } catch (error) {
+    console.error("Error fetching anime stats:", error);
+    // Default values for stats
+    animeStats = {
+      total_anime: 0,
+      watching: 0,
+      completed: 0,
+      on_hold: 0,
+      dropped: 0,
+      plan_to_watch: 0,
+      total_episodes: 0,
+      average_score: 0
+    };
+  }
 
   const { data: recentActivity, error: activityError } = await supabase
     .from("anime_lists")
@@ -249,75 +280,47 @@ export default async function UserDashboardPage() {
                           <span>Watching</span>
                           <span>{animeStats?.watching || 0}</span>
                         </div>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="bg-blue-500 h-full" 
-                            style={{ 
-                              width: `${animeStats?.total_anime ? (animeStats.watching / animeStats.total_anime) * 100 : 0}%` 
-                            }} 
-                          />
-                        </div>
-                        
                         <div className="flex justify-between items-center text-sm">
                           <span>Completed</span>
                           <span>{animeStats?.completed || 0}</span>
                         </div>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="bg-green-500 h-full" 
-                            style={{ 
-                              width: `${animeStats?.total_anime ? (animeStats.completed / animeStats.total_anime) * 100 : 0}%` 
-                            }} 
-                          />
-                        </div>
-                        
                         <div className="flex justify-between items-center text-sm">
-                          <span>Plan to Watch</span>
-                          <span>{animeStats?.plan_to_watch || 0}</span>
+                          <span>On Hold</span>
+                          <span>{animeStats?.on_hold || 0}</span>
                         </div>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="bg-amber-500 h-full" 
-                            style={{ 
-                              width: `${animeStats?.total_anime ? (animeStats.plan_to_watch / animeStats.total_anime) * 100 : 0}%` 
-                            }} 
-                          />
-                        </div>
-                        
                         <div className="flex justify-between items-center text-sm">
                           <span>Dropped</span>
                           <span>{animeStats?.dropped || 0}</span>
                         </div>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="bg-red-500 h-full" 
-                            style={{ 
-                              width: `${animeStats?.total_anime ? (animeStats.dropped / animeStats.total_anime) * 100 : 0}%` 
-                            }} 
-                          />
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Plan to Watch</span>
+                          <span>{animeStats?.plan_to_watch || 0}</span>
                         </div>
                       </div>
                     </div>
                     
                     <div>
-                      <h3 className="text-sm font-medium mb-3">Score Distribution</h3>
-                      <div className="space-y-1">
-                        {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((score) => (
-                          <div key={score} className="flex items-center gap-2 text-sm">
-                            <span className="w-8">{score}</span>
-                            <div className="flex-1 h-4 bg-muted rounded-sm overflow-hidden">
-                              <div 
-                                className={`bg-primary h-full`}
-                                style={{ 
-                                  width: `${animeStats?.total_anime ? ((animeStats[`score_${score}` as keyof typeof animeStats] as number || 0) / animeStats.total_anime) * 100 : 0}%` 
-                                }} 
-                              />
-                            </div>
-                            <span className="w-6 text-right">{animeStats ? animeStats[`score_${score}` as keyof typeof animeStats] || 0 : 0}</span>
-                          </div>
-                        ))}
+                      <h3 className="text-sm font-medium mb-3">Scores</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Mean Score</span>
+                          <span>{animeStats?.average_score?.toFixed(2) || "-"}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Highest Score</span>
+                          <span>{animeStats?.highest_score || "-"}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Episodes Watched</span>
+                          <span>{animeStats?.total_episodes || 0}</span>
+                        </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  {/* Placeholder for future charts */}
+                  <div className="mt-6 border border-dashed rounded-lg p-4 text-center text-muted-foreground">
+                    <p>More detailed statistics coming soon!</p>
                   </div>
                 </CardContent>
               </Card>
