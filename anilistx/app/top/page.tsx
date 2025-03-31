@@ -13,15 +13,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React from "react";
 
 const TOP_FILTERS = [
   { label: "All Anime", value: "all" },
   { label: "Airing", value: "airing" },
   { label: "Upcoming", value: "upcoming" },
-  { label: "TV Series", value: "tv" },
-  { label: "Movies", value: "movie" },
-  { label: "OVAs", value: "ova" },
-  { label: "Specials", value: "special" },
+  { label: "TV Series (API Unstable)", value: "tv" },
+  { label: "Movies (API Unstable)", value: "movie" },
+  { label: "OVAs (API Unstable)", value: "ova" },
+  { label: "Specials (API Unstable)", value: "special" },
   { label: "By Popularity", value: "bypopularity" },
   { label: "By Favorites", value: "favorite" },
 ];
@@ -38,12 +39,74 @@ export default function TopAnimePage() {
   
   // Map tabs to filter values
   const getFilterValue = () => {
-    if (activeTab === "bypopularity") return "bypopularity";
-    if (activeTab === "favorite") return "favorite";
-    return filter === "all" ? "" : filter;
+    // Start with the base filter type from the tab
+    let baseFilter = "";
+    
+    if (activeTab === "bypopularity") baseFilter = "bypopularity";
+    else if (activeTab === "favorite") baseFilter = "favorite";
+    else baseFilter = filter === "all" ? "" : filter;
+    
+    // If we're on a special tab AND a filter is selected, handle the combination
+    if ((activeTab === "bypopularity" || activeTab === "favorite") && filter !== "all") {
+      console.log(`Applying filter ${filter} with tab ${activeTab}`);
+      // For type filters, we'll need to use them in the component
+      return {
+        baseFilter,
+        typeFilter: ['tv', 'movie', 'ova', 'special'].includes(filter) ? filter : null
+      };
+    }
+    
+    return baseFilter;
   };
   
-  const { data, isLoading, isError, refresh } = useTopAnime(getFilterValue(), page, 25, retryCount);
+  // Store the filter info for use in rendering
+  const filterInfo = getFilterValue();
+  const typeFilter = typeof filterInfo === 'object' ? filterInfo.typeFilter : null;
+  
+  const { data, isLoading, isError, refresh } = useTopAnime(
+    typeof filterInfo === 'object' ? filterInfo.baseFilter : filterInfo, 
+    page, 
+    25, 
+    retryCount
+  );
+  
+  // Apply client-side type filtering when necessary
+  const filteredData = React.useMemo(() => {
+    if (!data || !data.data || data.data.length === 0) return data;
+    
+    // If we have a type filter combined with popularity/favorites, filter client-side
+    if (typeFilter && ['tv', 'movie', 'ova', 'special'].includes(typeFilter)) {
+      // Map API types to filter types for consistent matching
+      const typeMap = {
+        'tv': ['tv', 'tv show', 'television'],
+        'movie': ['movie', 'film'],
+        'ova': ['ova', 'oav', 'original video animation'],
+        'special': ['special', 'specials']
+      };
+      
+      const validTypes = typeMap[typeFilter as keyof typeof typeMap] || [typeFilter];
+      
+      const filteredAnime = data.data.filter(anime => {
+        if (!anime.type) return false;
+        const animeType = anime.type.toLowerCase();
+        return validTypes.some(t => animeType.includes(t));
+      });
+      
+      return {
+        ...data,
+        data: filteredAnime,
+        pagination: {
+          ...data.pagination,
+          items: {
+            ...data.pagination.items,
+            count: filteredAnime.length
+          }
+        }
+      };
+    }
+    
+    return data;
+  }, [data, typeFilter]);
   
   // Setup loading timeout to detect stuck loading states
   useEffect(() => {
@@ -108,20 +171,18 @@ export default function TopAnimePage() {
             <TabsTrigger value="favorite">By Favorites</TabsTrigger>
           </TabsList>
           
-          {activeTab === "all" && (
-            <Select value={filter} onValueChange={handleFilterChange}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter anime" />
-              </SelectTrigger>
-              <SelectContent>
-                {TOP_FILTERS.filter(f => !["bypopularity", "favorite"].includes(f.value)).map((filterOption) => (
-                  <SelectItem key={filterOption.value} value={filterOption.value}>
-                    {filterOption.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={filter} onValueChange={handleFilterChange}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filter anime" />
+            </SelectTrigger>
+            <SelectContent>
+              {TOP_FILTERS.filter(f => !["bypopularity", "favorite"].includes(f.value)).map((filterOption) => (
+                <SelectItem key={filterOption.value} value={filterOption.value}>
+                  {filterOption.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
         <TabsContent value="all" className="space-y-6">
@@ -145,7 +206,12 @@ export default function TopAnimePage() {
         <div className="bg-card rounded-lg p-8 text-center">
           <h3 className="text-xl font-medium mb-2">Error loading anime</h3>
           <p className="text-muted-foreground mb-4">
-            There was an error loading the top anime. Please try again.
+            {isError?.message || "There was an error loading the top anime. Please try again."}
+          </p>
+          <p className="text-muted-foreground mb-4">
+            {['tv', 'movie', 'ova', 'special'].includes(filter) ? 
+              "The API may have changed. Try a different filter or category." : 
+              ""}
           </p>
           <Button onClick={handleRetry}>Retry</Button>
         </div>
@@ -164,13 +230,19 @@ export default function TopAnimePage() {
       );
     }
     
-    if (!data || data.data.length === 0) {
+    if (!filteredData || filteredData.data.length === 0) {
       return (
         <div className="bg-card rounded-lg p-8 text-center">
           <h3 className="text-xl font-medium mb-2">No anime found</h3>
           <p className="text-muted-foreground mb-4">
-            There are no anime listed for this category.
+            {typeFilter ? 
+              `No ${typeFilter} anime found in this category. Try a different filter.` :
+              filter === "upcoming" ? 
+                "The API might not support the 'upcoming' filter properly. Try using 'airing' instead." :
+                "There are no anime listed for this category."
+            }
           </p>
+          <Button onClick={handleRetry}>Retry</Button>
         </div>
       );
     }
@@ -179,21 +251,30 @@ export default function TopAnimePage() {
       <>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">
-            {activeTab === "bypopularity"
+            {activeTab === "bypopularity" && filter === "all"
               ? "Most Popular Anime"
-              : activeTab === "favorite"
+              : activeTab === "favorite" && filter === "all"
               ? "Most Favorited Anime"
-              : filter
-              ? `Top ${TOP_FILTERS.find(f => f.value === filter)?.label || "Anime"}`
+              : activeTab === "bypopularity" && filter !== "all"
+              ? `Most Popular ${TOP_FILTERS.find(f => f.value === filter)?.label.replace(' (API Unstable)', '') || "Anime"}`
+              : activeTab === "favorite" && filter !== "all"
+              ? `Most Favorited ${TOP_FILTERS.find(f => f.value === filter)?.label.replace(' (API Unstable)', '') || "Anime"}`
+              : filter !== "all"
+              ? `Top ${TOP_FILTERS.find(f => f.value === filter)?.label.replace(' (API Unstable)', '') || "Anime"}`
               : "Top Rated Anime"}
           </h2>
           <div className="text-sm text-muted-foreground">
-            Page {data.pagination.current_page} of {data.pagination.last_visible_page}
+            Page {filteredData.pagination.current_page} of {filteredData.pagination.last_visible_page}
+            {typeFilter && filteredData.data.length !== data?.data.length && (
+              <span className="ml-2 text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
+                Filtered: {filteredData.data.length} {typeFilter.toUpperCase()} anime
+              </span>
+            )}
           </div>
         </div>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {data.data.map((anime, index) => (
+          {filteredData.data.map((anime, index) => (
             <div key={`${anime.mal_id}-${index}`} className="relative">
               {page === 1 && (
                 <div className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
@@ -206,7 +287,7 @@ export default function TopAnimePage() {
         </div>
         
         {/* Pagination */}
-        {data.pagination.last_visible_page > 1 && (
+        {filteredData.pagination.last_visible_page > 1 && (
           <div className="flex justify-center gap-2 pt-4">
             <Button
               variant="outline"
@@ -217,7 +298,7 @@ export default function TopAnimePage() {
             </Button>
             <div className="flex items-center gap-1">
               {Array.from(
-                { length: Math.min(5, data.pagination.last_visible_page) },
+                { length: Math.min(5, filteredData.pagination.last_visible_page) },
                 (_, i) => {
                   const pageNum = i + 1;
                   return (
@@ -232,14 +313,14 @@ export default function TopAnimePage() {
                   );
                 }
               )}
-              {data.pagination.last_visible_page > 5 && (
+              {filteredData.pagination.last_visible_page > 5 && (
                 <span className="px-2">...</span>
               )}
             </div>
             <Button
               variant="outline"
               onClick={() => setPage(page + 1)}
-              disabled={page === data.pagination.last_visible_page}
+              disabled={page === filteredData.pagination.last_visible_page}
             >
               Next
             </Button>

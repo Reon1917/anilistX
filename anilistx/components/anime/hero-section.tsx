@@ -90,7 +90,7 @@ export function HeroSection() {
                   </Link>
                 </Button>
                 <Button variant="outline" className="text-white border-white hover:bg-white/10">
-                  <Link href="/search">
+                  <Link href="/collection">
                     Explore More
                   </Link>
                 </Button>

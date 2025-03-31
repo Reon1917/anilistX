@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Star, Calendar, Play } from "lucide-react";
 import { AnimeBasic } from "@/lib/jikan";
 import { cn } from "@/lib/utils";
+import { AddToCollectionButton } from "@/components/collection/add-to-collection-button";
 
 interface AnimeCardProps {
   anime: AnimeBasic;
@@ -43,6 +44,18 @@ export function AnimeCard({ anime, size = "md" }: AnimeCardProps) {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <div className="line-clamp-3 text-sm">{anime.synopsis}</div>
+          
+          <div 
+            className="mt-2 z-20 relative" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <AddToCollectionButton 
+              animeData={anime}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            />
+          </div>
         </div>
 
         {anime.score > 0 && (

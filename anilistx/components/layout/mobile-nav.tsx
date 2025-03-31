@@ -13,12 +13,8 @@ const navItems = [
     href: "/",
   },
   {
-    name: "Anime",
-    href: "/anime",
-  },
-  {
-    name: "Search",
-    href: "/search",
+    name: "My Collection",
+    href: "/collection",
   },
   {
     name: "Top Anime",
