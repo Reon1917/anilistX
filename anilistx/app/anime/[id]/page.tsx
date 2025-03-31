@@ -7,19 +7,36 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-// Fetch function for Jikan API
+// Fetch function for Jikan API with timeout
 async function getAnimeDetails(id: number) {
   try {
-    const res = await fetch(`https://api.jikan.moe/v4/anime/${id}/full`);
+    // Add a timeout for the fetch request - 5 seconds
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const res = await fetch(`https://api.jikan.moe/v4/anime/${id}/full`, {
+      signal: controller.signal,
+      next: { revalidate: 3600 } // Cache for 1 hour
+    });
+    
+    clearTimeout(timeoutId);
+    
     if (!res.ok) {
       // Handle non-2xx responses (like 404)
       if (res.status === 404) return null;
       throw new Error(`Failed to fetch anime details: ${res.statusText}`);
     }
+    
     const json = await res.json();
     return json.data;
   } catch (error) {
     console.error("Jikan API Error:", error);
+    
+    // Special handling for timeout errors
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error("Jikan API request timed out");
+    }
+    
     return null; // Indicate error or not found
   }
 }

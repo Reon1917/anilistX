@@ -7,6 +7,7 @@ import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { Toaster } from "@/components/ui/toast";
+import { AnimatePresence } from "framer-motion";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -57,7 +58,9 @@ export default function RootLayout({
               </header>
               
               <main className="flex-1 container py-6 md:py-10">
-                {children}
+                <AnimatePresence mode="wait">
+                  {children}
+                </AnimatePresence>
               </main>
 
               <Footer />

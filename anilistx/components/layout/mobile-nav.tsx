@@ -3,9 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { RandomAnimeButton } from "@/components/anime/random-anime-button";
 
 const navItems = [
   {
@@ -72,6 +73,11 @@ export function MobileNav({ user, signOut }: MobileNavProps) {
                 {item.name}
               </Link>
             ))}
+            
+            <div className="flex items-center gap-2 text-muted-foreground group" onClick={closeNav}>
+              <RandomAnimeButton />
+              <span className="transition-colors group-hover:text-primary">Random Anime</span>
+            </div>
 
             <div className="h-px bg-border my-2" />
 
