@@ -5,10 +5,11 @@ import { SearchBar } from '@/components/search/search-bar';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
+import { PageTransition } from "@/components/ui/page-transition";
 
 export default function HomePage() {
   return (
-    <main>
+    <PageTransition>
       <div className="container py-8 space-y-12">
         <div className="mb-8">
           <SearchBar />
@@ -41,6 +42,6 @@ export default function HomePage() {
           <SeasonalAnimeSection />
         </section>
       </div>
-    </main>
+    </PageTransition>
   );
 }

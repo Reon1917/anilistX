@@ -5,6 +5,7 @@ import { useTopAnime } from "@/lib/hooks-wrapper";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
 import { Button } from "@/components/ui/button";
+import { AnimatedButton } from "@/components/ui/animated-button";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React from "react";
+import { PageTransition } from "@/components/ui/page-transition";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 
 const TOP_FILTERS = [
   { label: "All Anime", value: "all" },
@@ -155,49 +158,51 @@ export default function TopAnimePage() {
   };
   
   return (
-    <div className="flex flex-col gap-8">
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold">Top Anime</h1>
-        <p className="text-muted-foreground">
-          Discover the highest rated and most popular anime of all time.
-        </p>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b">
-          <TabsList className="grid w-full sm:w-auto grid-cols-3">
-            <TabsTrigger value="all">By Score</TabsTrigger>
-            <TabsTrigger value="bypopularity">By Popularity</TabsTrigger>
-            <TabsTrigger value="favorite">By Favorites</TabsTrigger>
-          </TabsList>
-          
-          <Select value={filter} onValueChange={handleFilterChange}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Filter anime" />
-            </SelectTrigger>
-            <SelectContent>
-              {TOP_FILTERS.filter(f => !["bypopularity", "favorite"].includes(f.value)).map((filterOption) => (
-                <SelectItem key={filterOption.value} value={filterOption.value}>
-                  {filterOption.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <PageTransition>
+      <div className="flex flex-col gap-8">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold">Top Anime</h1>
+          <p className="text-muted-foreground">
+            Discover the highest rated and most popular anime of all time.
+          </p>
         </div>
         
-        <TabsContent value="all" className="space-y-6">
-          {renderResults()}
-        </TabsContent>
-        
-        <TabsContent value="bypopularity" className="space-y-6">
-          {renderResults()}
-        </TabsContent>
-        
-        <TabsContent value="favorite" className="space-y-6">
-          {renderResults()}
-        </TabsContent>
-      </Tabs>
-    </div>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b">
+            <TabsList className="grid w-full sm:w-auto grid-cols-3">
+              <TabsTrigger value="all">By Score</TabsTrigger>
+              <TabsTrigger value="bypopularity">By Popularity</TabsTrigger>
+              <TabsTrigger value="favorite">By Favorites</TabsTrigger>
+            </TabsList>
+            
+            <Select value={filter} onValueChange={handleFilterChange}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filter anime" />
+              </SelectTrigger>
+              <SelectContent>
+                {TOP_FILTERS.filter(f => !["bypopularity", "favorite"].includes(f.value)).map((filterOption) => (
+                  <SelectItem key={filterOption.value} value={filterOption.value}>
+                    {filterOption.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <TabsContent value="all" className="space-y-6">
+            {renderResults()}
+          </TabsContent>
+          
+          <TabsContent value="bypopularity" className="space-y-6">
+            {renderResults()}
+          </TabsContent>
+          
+          <TabsContent value="favorite" className="space-y-6">
+            {renderResults()}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </PageTransition>
   );
   
   function renderResults() {
@@ -213,19 +218,33 @@ export default function TopAnimePage() {
               "The API may have changed. Try a different filter or category." : 
               ""}
           </p>
-          <Button onClick={handleRetry}>Retry</Button>
+          <Button onClick={handleRetry} className="relative">
+            {isLoading ? (
+              <>
+                <LoadingAnimation size="sm" className="mr-2" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              "Retry"
+            )}
+          </Button>
         </div>
       );
     }
     
     if (isLoading) {
       return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {Array(25)
-            .fill(null)
-            .map((_, index) => (
-              <AnimeCardSkeleton key={index} />
-            ))}
+        <div className="space-y-6">
+          <div className="flex justify-center py-8">
+            <LoadingAnimation size="lg" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {Array(10)
+              .fill(null)
+              .map((_, index) => (
+                <AnimeCardSkeleton key={index} />
+              ))}
+          </div>
         </div>
       );
     }
@@ -242,7 +261,16 @@ export default function TopAnimePage() {
                 "There are no anime listed for this category."
             }
           </p>
-          <Button onClick={handleRetry}>Retry</Button>
+          <Button onClick={handleRetry} className="relative">
+            {isLoading ? (
+              <>
+                <LoadingAnimation size="sm" className="mr-2" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              "Retry"
+            )}
+          </Button>
         </div>
       );
     }

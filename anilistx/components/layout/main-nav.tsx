@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { RandomAnimeButton } from "@/components/anime/random-anime-button";
 
 const navItems = [
   {
@@ -42,6 +43,7 @@ export function MainNav() {
           {item.name}
         </Link>
       ))}
+      <RandomAnimeButton className="ml-2" />
     </nav>
   );
 } 
