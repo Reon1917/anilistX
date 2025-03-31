@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 const profileFormSchema = z.object({
   username: z
@@ -60,7 +60,6 @@ type ProfileSettingsFormProps = {
 export function ProfileSettingsForm({ initialData, userId }: ProfileSettingsFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
-  const { toast } = useToast();
   const supabase = createClient();
 
   const defaultValues: Partial<ProfileFormValues> = {
@@ -92,17 +91,14 @@ export function ProfileSettingsForm({ initialData, userId }: ProfileSettingsForm
         throw error;
       }
 
-      toast({
-        title: "Profile updated",
+      toast.success("Profile updated", {
         description: "Your profile has been updated successfully.",
       });
       
       router.refresh();
     } catch (error: any) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: error.message || "Failed to update profile",
-        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);

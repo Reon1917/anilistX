@@ -5,9 +5,11 @@ import { HeaderAuth } from "@/components/layout/header-auth";
 import { Footer } from "@/components/layout/footer";
 import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { EnvVarWarning } from "@/components/env-var-warning";
-import { ToastProvider } from "@/components/ui/toast-provider";
-import { Toaster } from "@/components/ui/toast";
+import { Toaster } from "@/components/ui/sonner";
 import { AnimatePresence } from "framer-motion";
+import { Inter as FontSans } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { UserCollectionProvider } from "@/components/anime/user-collection-provider";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -35,21 +37,26 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+const fontSans = FontSans({
+  variable: "--font-sans",
+  subsets: ["latin"],
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geistSans.className} suppressHydrationWarning>
-      <body className="bg-background text-foreground min-h-screen flex flex-col">
+    <html lang="en" className={cn(geistSans.className, fontSans.variable)} suppressHydrationWarning>
+      <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <ToastProvider>
+          <UserCollectionProvider>
             <div className="flex flex-col min-h-screen">
               <header className="border-b border-border sticky top-0 z-40 bg-background/95 backdrop-blur">
                 <div className="container flex h-16 items-center justify-between">
@@ -66,7 +73,7 @@ export default function RootLayout({
               <Footer />
             </div>
             <Toaster />
-          </ToastProvider>
+          </UserCollectionProvider>
         </ThemeProvider>
       </body>
     </html>

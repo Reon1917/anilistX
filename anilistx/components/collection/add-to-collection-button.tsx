@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PlusCircle, Check } from "lucide-react";
 import { Button, ButtonProps } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SelectedAnimeDetails } from "./selected-anime-details";
+import { useUserCollection } from "@/components/anime/user-collection-provider";
 
 interface AddToCollectionButtonProps extends ButtonProps {
   animeData: {
@@ -45,36 +46,13 @@ export function AddToCollectionButton({
 }: AddToCollectionButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [isInCollection, setIsInCollection] = useState(false);
   
   const router = useRouter();
-  const { toast } = useToast();
   const supabase = createClient();
+  const { userAnimeCollection, refreshCollection } = useUserCollection();
   
-  // Check if anime is already in collection when mounted
-  useEffect(() => {
-    const checkCollection = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) return;
-        
-        const { data } = await supabase
-          .from("anime_lists")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("anime_id", animeData.mal_id)
-          .single();
-          
-        setIsInCollection(!!data);
-      } catch (error) {
-        // Ignore errors here, just assume not in collection
-        console.error("Error checking collection:", error);
-      }
-    };
-    
-    checkCollection();
-  }, [animeData.mal_id, supabase]);
+  // Check if anime is in collection using the cached data
+  const isInCollection = userAnimeCollection.has(animeData.mal_id);
   
   const handleAddAnime = async (status: string, score: number) => {
     setIsAdding(true);
@@ -112,19 +90,18 @@ export function AddToCollectionButton({
         throw new Error(insertError.message);
       }
       
-      toast({
-        title: "Anime added to collection",
-        description: `${animeData.title} has been added to your collection.`,
+      toast.success("Anime added", {
+        description: `${animeData.title} has been added to your collection.`
       });
       
-      setIsInCollection(true);
+      // Refresh the collection context
+      await refreshCollection();
+      
       router.refresh();
       setDialogOpen(false);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add anime to collection",
-        variant: "destructive",
+      toast.error("Error", {
+        description: error.message || "Failed to add anime to collection"
       });
     } finally {
       setIsAdding(false);

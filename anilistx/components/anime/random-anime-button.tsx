@@ -6,7 +6,7 @@ import { Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 export function RandomAnimeButton({ className }: { className?: string }) {
   const router = useRouter();
@@ -22,11 +22,7 @@ export function RandomAnimeButton({ className }: { className?: string }) {
       timeoutId = setTimeout(() => {
         setIsLoading(false);
         setRequestTimedOut(true);
-        toast({
-          title: "Request timed out",
-          description: "The request is taking too long. Please try again.",
-          variant: "destructive",
-        });
+        toast.error("Request timed out. The request is taking too long. Please try again.");
       }, 8000);
     }
     
@@ -75,11 +71,7 @@ export function RandomAnimeButton({ className }: { className?: string }) {
     } catch (error) {
       console.error("Error fetching random anime:", error);
       setIsLoading(false);
-      toast({
-        title: "Error",
-        description: "Failed to find a random anime. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to find a random anime. Please try again.");
     }
   };
 

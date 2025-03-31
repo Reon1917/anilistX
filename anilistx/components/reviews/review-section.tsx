@@ -7,7 +7,7 @@ import { ReviewList } from './review-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PencilLine, MessageSquare, Edit } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Session } from '@supabase/supabase-js';
 
 interface ReviewSectionProps {
@@ -16,7 +16,6 @@ interface ReviewSectionProps {
 }
 
 export function ReviewSection({ animeId, session }: ReviewSectionProps) {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'read' | 'write'>('read');
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   
@@ -39,24 +38,20 @@ export function ReviewSection({ animeId, session }: ReviewSectionProps) {
     try {
       if (editingReview) {
         await updateReview(formData);
-        toast({
-          title: 'Review updated!',
-          description: 'Your review has been successfully updated.',
+        toast.success("Review updated!", {
+          description: "Your review has been successfully updated."
         });
         setEditingReview(null);
       } else {
         await submitReview(formData);
-        toast({
-          title: 'Review submitted!',
-          description: 'Your review has been successfully submitted.',
+        toast.success("Review submitted!", {
+          description: "Your review has been successfully submitted."
         });
       }
       setActiveTab('read');
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'There was a problem with your review. Please try again.',
-        variant: 'destructive',
+      toast.error("Error", {
+        description: "There was a problem with your review. Please try again."
       });
     }
   };
@@ -75,18 +70,15 @@ export function ReviewSection({ animeId, session }: ReviewSectionProps) {
       try {
         const success = await deleteReview(reviewId);
         if (success) {
-          toast({
-            title: 'Review deleted',
-            description: 'Your review has been successfully deleted.',
+          toast.success("Review deleted", {
+            description: "Your review has been successfully deleted."
           });
         } else {
           throw new Error('Failed to delete review');
         }
       } catch (err) {
-        toast({
-          title: 'Error',
-          description: 'There was a problem deleting your review. Please try again.',
-          variant: 'destructive',
+        toast.error("Error", {
+          description: "There was a problem deleting your review. Please try again."
         });
       }
     }

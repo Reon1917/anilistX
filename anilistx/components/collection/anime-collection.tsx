@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { EditAnimeDialog } from "./edit-anime-dialog";
 
 type AnimeItem = {
@@ -64,7 +64,6 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   
   const router = useRouter();
-  const { toast } = useToast();
   const supabase = createClient();
   
   const filteredAnimeList = activeTab === "all" 
@@ -84,18 +83,15 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
         
       if (error) throw error;
       
-      toast({
-        title: "Anime removed",
+      toast.success("Anime removed", {
         description: `${animeToDelete.title} has been removed from your collection.`,
       });
       
       router.refresh();
     } catch (error) {
       console.error("Error deleting anime:", error);
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to remove anime from your collection.",
-        variant: "destructive",
       });
     } finally {
       setIsDeleting(false);
@@ -123,8 +119,7 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
         
       if (error) throw error;
       
-      toast({
-        title: "Collection updated",
+      toast.success("Collection updated", {
         description: `${animeToEdit.title} has been updated.`,
       });
       
@@ -132,10 +127,8 @@ export function AnimeCollection({ animeList }: AnimeCollectionProps) {
       setAnimeToEdit(null);
     } catch (error) {
       console.error("Error updating anime:", error);
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to update anime in your collection.",
-        variant: "destructive",
       });
     } finally {
       setIsEditing(false);

@@ -9,7 +9,7 @@ import { AnimeSearchResults } from "@/components/collection/anime-search-results
 import { SelectedAnimeDetails } from "@/components/collection/selected-anime-details";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 type AddAnimeDialogProps = {
   open: boolean;
@@ -18,42 +18,55 @@ type AddAnimeDialogProps = {
 
 export function AddAnimeDialog({ open, onOpenChange }: AddAnimeDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedAnime, setSelectedAnime] = useState<any | null>(null);
-  const [searchError, setSearchError] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   
   const router = useRouter();
-  const { toast } = useToast();
   const supabase = createClient();
   
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
     setIsSearching(true);
-    setSearchError("");
+    setSearchError(null);
     
     try {
-      const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(searchQuery)}&sfw=true&limit=10`);
+      // Base Jikan API URL
+      const url = new URL('https://api.jikan.moe/v4/anime');
+      // Add search query
+      url.searchParams.append('q', searchQuery);
+      // Sort by popularity to get most relevant results first
+      url.searchParams.append('order_by', 'popularity');
+      // Limit to 20 results
+      url.searchParams.append('limit', '20');
+      
+      const response = await fetch(url.toString());
       
       if (!response.ok) {
-        throw new Error("Failed to fetch anime data");
+        throw new Error(`Search failed with status: ${response.status}`);
       }
       
       const data = await response.json();
-      setSearchResults(data.data || []);
+      
+      if (data.data && Array.isArray(data.data)) {
+        setSearchResults(data.data);
+      } else {
+        setSearchResults([]);
+      }
     } catch (error) {
-      console.error("Search error:", error);
-      setSearchError("Failed to search anime. Please try again later.");
+      console.error('Error searching anime:', error);
+      setSearchError('Failed to search anime. Please try again.');
       setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
   };
   
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
       handleSearch();
     }
   };
@@ -81,40 +94,38 @@ export function AddAnimeDialog({ open, onOpenChange }: AddAnimeDialogProps) {
         throw new Error("You must be logged in to add anime to your collection");
       }
       
-      const animeData = {
+      const anime = {
         user_id: user.id,
         anime_id: selectedAnime.mal_id,
         title: selectedAnime.title,
-        image_url: selectedAnime.images.jpg.image_url,
+        image_url: selectedAnime.images.jpg.image_url || selectedAnime.images.webp.image_url,
         type: selectedAnime.type || 'TV',
         episodes: selectedAnime.episodes || 0,
         status,
         score,
         year: selectedAnime.year || null,
-        studio: selectedAnime.studios.length > 0 ? selectedAnime.studios[0].name : null,
+        studio: selectedAnime.studios && selectedAnime.studios.length > 0 ? 
+          selectedAnime.studios[0].name : null,
         mal_score: selectedAnime.score || null
       };
       
       const { error: insertError } = await supabase
         .from("anime_lists")
-        .upsert(animeData, { onConflict: "user_id,anime_id" });
+        .upsert(anime, { onConflict: "user_id,anime_id" });
       
       if (insertError) {
         throw new Error(insertError.message);
       }
       
-      toast({
-        title: "Anime added to collection",
+      toast.success("Anime added", {
         description: `${selectedAnime.title} has been added to your collection.`,
       });
       
       router.refresh();
       onOpenChange(false);
     } catch (error: any) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: error.message || "Failed to add anime to collection",
-        variant: "destructive",
       });
     } finally {
       setIsAdding(false);
@@ -177,6 +188,7 @@ export function AddAnimeDialog({ open, onOpenChange }: AddAnimeDialogProps) {
             anime={selectedAnime}
             onBack={handleBackToSearch}
             onAdd={handleAddAnime}
+            isAdding={isAdding}
           />
         )}
       </DialogContent>
