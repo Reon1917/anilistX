@@ -24,6 +24,22 @@ class JikanTsService {
     });
   }
   
+  // Clear the cache, useful for debugging
+  clearCache(pattern?: string) {
+    if (pattern) {
+      // Clear entries matching a pattern
+      const regex = new RegExp(pattern);
+      Array.from(this.cache.keys())
+        .filter(key => regex.test(key))
+        .forEach(key => this.cache.delete(key));
+      console.log(`Cleared cache entries matching: ${pattern}`);
+    } else {
+      // Clear entire cache
+      this.cache.clear();
+      console.log('Cleared entire cache');
+    }
+  }
+  
   /**
    * Helper method to deduplicate requests and cache results
    */
@@ -118,9 +134,17 @@ class JikanTsService {
     try {
       return await this.dedupRequest(cacheKey, async () => {
         const params: any = { page, limit };
-        if (filter) {
+        
+        // Different parameter handling based on filter type
+        if (['airing', 'upcoming', 'bypopularity', 'favorite'].includes(filter)) {
+          // These are valid filter values for the Jikan API
           params.filter = filter;
+        } else if (['tv', 'movie', 'ova', 'special'].includes(filter)) {
+          // Type filters should use the type parameter, not filter
+          params.type = filter;
         }
+        
+        console.log(`Making API request to getTopAnime with params:`, params);
         
         // Add retry logic to handle temporary API failures
         const maxRetries = 3;
@@ -139,9 +163,11 @@ class JikanTsService {
         
         const executeRequest = async () => {
           try {
-            return await this.client.top.getTopAnime(params);
+            const response = await this.client.top.getTopAnime(params);
+            console.log(`API response for ${filter || 'all'}: ${response?.data?.length || 0} results`);
+            return response;
           } catch (error) {
-            console.error(`Attempt ${retryCount + 1} failed for getTopAnime:`, error);
+            console.error(`Attempt ${retryCount + 1} failed for getTopAnime with filter ${filter}:`, error);
             throw error;
           }
         };
@@ -154,6 +180,10 @@ class JikanTsService {
             retryCount++;
             if (retryCount >= maxRetries) {
               console.error(`All ${maxRetries} attempts failed for getTopAnime`);
+              
+              // Clear the cache for this filter to prevent reusing bad data
+              this.clearCache(`top:${filter}`);
+              
               // Return empty data instead of throwing to prevent UI issues
               return { 
                 data: [], 

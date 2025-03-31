@@ -18,10 +18,10 @@ const TOP_FILTERS = [
   { label: "All Anime", value: "all" },
   { label: "Airing", value: "airing" },
   { label: "Upcoming", value: "upcoming" },
-  { label: "TV Series", value: "tv" },
-  { label: "Movies", value: "movie" },
-  { label: "OVAs", value: "ova" },
-  { label: "Specials", value: "special" },
+  { label: "TV Series (API Unstable)", value: "tv" },
+  { label: "Movies (API Unstable)", value: "movie" },
+  { label: "OVAs (API Unstable)", value: "ova" },
+  { label: "Specials (API Unstable)", value: "special" },
   { label: "By Popularity", value: "bypopularity" },
   { label: "By Favorites", value: "favorite" },
 ];
@@ -108,20 +108,18 @@ export default function TopAnimePage() {
             <TabsTrigger value="favorite">By Favorites</TabsTrigger>
           </TabsList>
           
-          {activeTab === "all" && (
-            <Select value={filter} onValueChange={handleFilterChange}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter anime" />
-              </SelectTrigger>
-              <SelectContent>
-                {TOP_FILTERS.filter(f => !["bypopularity", "favorite"].includes(f.value)).map((filterOption) => (
-                  <SelectItem key={filterOption.value} value={filterOption.value}>
-                    {filterOption.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={filter} onValueChange={handleFilterChange}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filter anime" />
+            </SelectTrigger>
+            <SelectContent>
+              {TOP_FILTERS.filter(f => !["bypopularity", "favorite"].includes(f.value)).map((filterOption) => (
+                <SelectItem key={filterOption.value} value={filterOption.value}>
+                  {filterOption.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
         <TabsContent value="all" className="space-y-6">
@@ -145,7 +143,12 @@ export default function TopAnimePage() {
         <div className="bg-card rounded-lg p-8 text-center">
           <h3 className="text-xl font-medium mb-2">Error loading anime</h3>
           <p className="text-muted-foreground mb-4">
-            There was an error loading the top anime. Please try again.
+            {isError?.message || "There was an error loading the top anime. Please try again."}
+          </p>
+          <p className="text-muted-foreground mb-4">
+            {['tv', 'movie', 'ova', 'special'].includes(filter) ? 
+              "The API may have changed. Try a different filter or category." : 
+              ""}
           </p>
           <Button onClick={handleRetry}>Retry</Button>
         </div>
@@ -169,8 +172,12 @@ export default function TopAnimePage() {
         <div className="bg-card rounded-lg p-8 text-center">
           <h3 className="text-xl font-medium mb-2">No anime found</h3>
           <p className="text-muted-foreground mb-4">
-            There are no anime listed for this category.
+            {filter === "upcoming" ? 
+              "The API might not support the 'upcoming' filter properly. Try using 'airing' instead." :
+              "There are no anime listed for this category."
+            }
           </p>
+          <Button onClick={handleRetry}>Retry</Button>
         </div>
       );
     }
