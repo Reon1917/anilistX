@@ -67,6 +67,7 @@ async function getCollectionStatus(animeId: number) {
 // Define the structure of the props for the page
 type AnimeDetailPageProps = {
   params: { id: string };
+  searchParams: Record<string, string | string[] | undefined>;
 };
 
 export default async function AnimeDetailPage({ params }: AnimeDetailPageProps) {
