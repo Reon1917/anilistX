@@ -5,41 +5,79 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import jikanTsService from './jikan-axios';
 import { SearchParams, AnimeBasic, JikanResponse } from './jikan';
 
-// Fetcher function for SWR
-const fetcher = async (url: string, params: Record<string, unknown>) => {
+// Using type guards to handle different parameter types
+const isSearchParams = (params: any): params is SearchParams => {
+  return params && typeof params === 'object';
+};
+
+// Specialized fetcher functions for different endpoints
+const fetchAnimeSearch = (params: SearchParams) => {
+  return jikanTsService.searchAnime(params);
+};
+
+const fetchAnimeById = (id: number) => {
+  return jikanTsService.getAnimeById(id);
+};
+
+const fetchTopAnime = (filter: string, page: number, limit: number) => {
+  return jikanTsService.getTopAnime(filter, page, limit);
+};
+
+const fetchSeasonalAnime = (year: number | undefined, season: string | undefined, page: number, limit: number) => {
+  return jikanTsService.getSeasonalAnime(year, season, page, limit);
+};
+
+const fetchRecommendations = (id: number, page: number, limit: number) => {
+  return jikanTsService.getAnimeRecommendations(id, page, limit);
+};
+
+const fetchGenres = () => {
+  return jikanTsService.getGenres();
+};
+
+// Master fetcher function
+const fetcher = async (url: string, params: unknown) => {
   const [endpoint, method] = url.split(':');
   
   switch (endpoint) {
     case 'anime':
       switch (method) {
         case 'search':
-          return jikanTsService.searchAnime(params as SearchParams);
-        case 'id':
-          return jikanTsService.getAnimeById(Number(params.id));
-        case 'top':
-          return jikanTsService.getTopAnime(
-            params.filter as string, 
-            params.page as number, 
-            params.limit as number
+          return fetchAnimeSearch(params as SearchParams);
+        case 'id': {
+          const animeId = (params as { id: number }).id;
+          return fetchAnimeById(animeId);
+        }
+        case 'top': {
+          const topParams = params as { filter?: string; page?: number; limit?: number };
+          return fetchTopAnime(
+            topParams.filter || '', 
+            topParams.page || 1, 
+            topParams.limit || 25
           );
-        case 'seasonal':
-          return jikanTsService.getSeasonalAnime(
-            params.year as number | undefined, 
-            params.season as string | undefined, 
-            params.page as number, 
-            params.limit as number
+        }
+        case 'seasonal': {
+          const seasonalParams = params as { year?: number; season?: string; page?: number; limit?: number };
+          return fetchSeasonalAnime(
+            seasonalParams.year, 
+            seasonalParams.season, 
+            seasonalParams.page || 1, 
+            seasonalParams.limit || 25
           );
-        case 'recommendations':
-          return jikanTsService.getAnimeRecommendations(
-            Number(params.id), 
-            params.page as number, 
-            params.limit as number
+        }
+        case 'recommendations': {
+          const recParams = params as { id: number; page?: number; limit?: number };
+          return fetchRecommendations(
+            recParams.id, 
+            recParams.page || 1, 
+            recParams.limit || 25
           );
+        }
         default:
           throw new Error(`Unknown method: ${method}`);
       }
     case 'genres':
-      return jikanTsService.getGenres();
+      return fetchGenres();
     default:
       throw new Error(`Unknown endpoint: ${endpoint}`);
   }
@@ -329,7 +367,8 @@ export function useSeasonalAnime(year?: number, season?: string, page: number = 
  * Hook for infinite loading anime
  */
 export function useInfiniteAnime(params: SearchParams = {}) {
-  const getKey = (pageIndex: number, previousPageData: JikanResponse<AnimeBasic[]>) => {
+  // Fixed type for the key generation function
+  const getKey = (pageIndex: number, previousPageData: JikanResponse<AnimeBasic[]> | null): [string, SearchParams] | null => {
     // Reached the end
     if (previousPageData && !previousPageData.pagination.has_next_page) return null;
     

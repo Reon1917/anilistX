@@ -2,11 +2,39 @@ Core API Services and Dependencies:
 1. @tutkli/jikan-ts - Used in lib/jikan-axios.ts
 2. @mateoaranda/jikanjs - Used in lib/jikan.ts
 3. Direct fetch API calls - Used in app/anime/[id]/page.tsx and components/anime/random-anime-button.tsx
+
 Hooks Libraries Usage:
-1. @/lib/hooks - Used in components/search/search-bar.tsx
-2. @/lib/hooks-axios - Used in multiple anime components
-3. @/lib/hooks-wrapper - Used in app/top/page.tsx and app/seasonal/page.tsx
+1. @/lib/hooks - REMOVED (Consolidated into lib/api-hooks.ts)
+2. @/lib/hooks-axios - REMOVED (Consolidated into lib/api-hooks.ts)
+3. @/lib/hooks-wrapper - REMOVED (Consolidated into lib/api-hooks.ts)
+4. NEW: @/lib/api-hooks.ts - Consolidated implementation of all hook libraries
+
 Potentially Unused Packages:
-1. jikanjs - This appears to be redundant with @mateoaranda/jikanjs
-Files to Consider for Removal or Consolidation:
-1. lib/hooks.ts, lib/hooks-axios.ts, lib/hooks-wrapper.ts - These three files seem to have overlapping functionality and could be consolidated
+1. jikanjs - REMOVED (Redundant with @mateoaranda/jikanjs)
+
+Files Consolidation:
+1. lib/hooks.ts - REMOVED (Consolidated into lib/api-hooks.ts)
+2. lib/hooks-axios.ts - REMOVED (Consolidated into lib/api-hooks.ts)
+3. lib/hooks-wrapper.ts - REMOVED (Consolidated into lib/api-hooks.ts)
+
+Completed Cleanup Steps:
+1. Identified core API services and dependencies
+2. Removed redundant 'jikanjs' package
+3. Consolidated hooks libraries into a single lib/api-hooks.ts file
+4. Updated component imports to use the new consolidated API hooks file
+5. Fixed TypeScript errors in the consolidated API hooks file
+6. Removed obsolete hook files (hooks.ts, hooks-axios.ts, hooks-wrapper.ts)
+
+Outcomes:
+1. Reduced codebase complexity by removing duplicate implementations
+2. Improved maintainability by centralizing API hook logic
+3. Reduced package dependencies
+4. Fixed TypeScript type issues for better type safety
+5. All components now reference a single, consistent API hooks implementation
+
+Future Recommendations:
+1. Consider further standardizing direct fetch API calls to use the consolidated hooks
+2. Implement automated tests for the API hooks to ensure they behave as expected
+3. Setup pre-commit hooks to run linting and type checks automatically
+4. Consider extracting common UI components for reuse across the application
+
