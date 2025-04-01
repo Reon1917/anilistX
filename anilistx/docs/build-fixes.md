@@ -21,6 +21,9 @@
    - Removed unused imports in `app/anime/[id]/page.tsx`
    - Added proper type definition for page props
 
+4. **Rendering Mode**
+   - Forced dynamic rendering for `app/protected/settings/page.tsx` to fix build-time session access error.
+
 ## Remaining Issues
 
 The solution implements a pragmatic approach by disabling certain checks during build time. This allows the build to complete successfully while development can continue. In the long term, the following should be addressed:

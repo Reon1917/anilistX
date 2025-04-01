@@ -5,6 +5,10 @@ import { LineChart, ListChecks, Settings, User } from "lucide-react";
 import Link from "next/link";
 import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: "Profile Settings | AnilistX",
@@ -12,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SettingsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { session },
