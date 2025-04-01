@@ -9,7 +9,13 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.config({
-    extends: ['eslint:recommended', 'next'],
+    extends: ['eslint:recommended', 'next/core-web-vitals'],
+    rules: {
+      'react/react-in-jsx-scope': 'off',
+      'react/no-unescaped-entities': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn'
+    }
   }),
 ]
 

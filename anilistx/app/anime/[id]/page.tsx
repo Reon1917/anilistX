@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { AddToCollectionButton } from "@/components/collection/add-to-collection-button";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { Star, Tv, Film, Calendar, Users } from "lucide-react";
+import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
