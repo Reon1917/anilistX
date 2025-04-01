@@ -126,16 +126,14 @@ class JikanService {
       if (params.start_date) queryParams.start_date = params.start_date;
       if (params.end_date) queryParams.end_date = params.end_date;
       
-      // Use raw method to directly call the API
-      const response = await jikanjs.raw(['anime'], function() {
-        return { 
-          q: params.q || "", 
-          page: params.page || 1,
-          ...queryParams
-        };
+      // Use raw method to directly call the API with the correct parameter format
+      const response = await jikanjs.raw(['anime'], {
+        page: params.page || 1,
+        q: params.q || "",
+        ...queryParams
       });
       
-      return response;
+      return response as JikanResponse<AnimeBasic[]>;
     } catch (error) {
       console.error('Error searching anime:', error);
       throw error;
@@ -148,7 +146,7 @@ class JikanService {
   async getAnimeById(id: number): Promise<AnimeBasic> {
     try {
       const response = await jikanjs.raw(['anime', id]);
-      return response.data;
+      return (response as any).data as AnimeBasic;
     } catch (error) {
       console.error(`Error fetching anime with ID ${id}:`, error);
       throw error;
@@ -162,22 +160,18 @@ class JikanService {
     try {
       let response;
       if (filter) {
-        response = await jikanjs.raw(['top', 'anime'], function() {
-          return { 
-            page: page,
-            filter: filter,
-            limit: limit
-          };
+        response = await jikanjs.raw(['top', 'anime'], {
+          page: page,
+          filter: filter,
+          limit: limit
         });
       } else {
-        response = await jikanjs.raw(['top', 'anime'], function() {
-          return { 
-            page: page,
-            limit: limit
-          };
+        response = await jikanjs.raw(['top', 'anime'], {
+          page: page,
+          limit: limit
         });
       }
-      return response;
+      return response as JikanResponse<AnimeBasic[]>;
     } catch (error) {
       console.error('Error fetching top anime:', error);
       throw error;
@@ -191,21 +185,17 @@ class JikanService {
     try {
       let response;
       if (year && season) {
-        response = await jikanjs.raw(['seasons', year, season], function() {
-          return {
-            page: page,
-            limit: limit
-          };
+        response = await jikanjs.raw(['seasons', year, season], {
+          page: page,
+          limit: limit
         });
       } else {
-        response = await jikanjs.raw(['seasons', 'now'], function() {
-          return {
-            page: page,
-            limit: limit
-          };
+        response = await jikanjs.raw(['seasons', 'now'], {
+          page: page,
+          limit: limit
         });
       }
-      return response;
+      return response as JikanResponse<AnimeBasic[]>;
     } catch (error) {
       console.error('Error fetching seasonal anime:', error);
       throw error;
@@ -217,13 +207,11 @@ class JikanService {
    */
   async getAnimeRecommendations(id: number, page: number = 1, limit: number = 25): Promise<JikanResponse<Record<string, unknown>[]>> {
     try {
-      const response = await jikanjs.raw(['anime', id, 'recommendations'], function() {
-        return {
-          page: page,
-          limit: limit
-        };
+      const response = await jikanjs.raw(['anime', id, 'recommendations'], {
+        page: page,
+        limit: limit
       });
-      return response;
+      return response as JikanResponse<Record<string, unknown>[]>;
     } catch (error) {
       console.error(`Error fetching recommendations for anime ${id}:`, error);
       throw error;
@@ -236,7 +224,7 @@ class JikanService {
   async getGenres(): Promise<JikanResponse<Record<string, unknown>[]>> {
     try {
       const response = await jikanjs.raw(['genres', 'anime']);
-      return response;
+      return response as JikanResponse<Record<string, unknown>[]>;
     } catch (error) {
       console.error('Error fetching anime genres:', error);
       throw error;

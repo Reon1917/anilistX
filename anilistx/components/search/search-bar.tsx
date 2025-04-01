@@ -39,7 +39,14 @@ export function SearchBar() {
   }, []);
   
   // Fetch search results
-  const { anime, isLoading } = useAnimeSearch(debouncedQuery);
+  const { data, isLoading } = useAnimeSearch({
+    q: debouncedQuery,
+    limit: 5,
+    order_by: 'popularity'
+  }, debouncedQuery.length >= 3);
+  
+  // Get anime from data structure
+  const anime = data?.data || [];
   
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {

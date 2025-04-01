@@ -10,6 +10,7 @@ import { SelectedAnimeDetails } from "@/components/collection/selected-anime-det
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import jikanTsService from "@/lib/jikan-axios";
 
 type AddAnimeDialogProps = {
   open: boolean;
@@ -34,25 +35,15 @@ export function AddAnimeDialog({ open, onOpenChange }: AddAnimeDialogProps) {
     setSearchError(null);
     
     try {
-      // Base Jikan API URL
-      const url = new URL('https://api.jikan.moe/v4/anime');
-      // Add search query
-      url.searchParams.append('q', searchQuery);
-      // Sort by popularity to get most relevant results first
-      url.searchParams.append('order_by', 'popularity');
-      // Limit to 20 results
-      url.searchParams.append('limit', '20');
+      // Use jikanTsService instead of direct fetch
+      const response = await jikanTsService.searchAnime({
+        q: searchQuery,
+        order_by: 'popularity',
+        limit: 20
+      });
       
-      const response = await fetch(url.toString());
-      
-      if (!response.ok) {
-        throw new Error(`Search failed with status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.data && Array.isArray(data.data)) {
-        setSearchResults(data.data);
+      if (response.data && Array.isArray(response.data)) {
+        setSearchResults(response.data);
       } else {
         setSearchResults([]);
       }
