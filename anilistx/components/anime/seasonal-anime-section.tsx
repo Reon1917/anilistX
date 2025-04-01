@@ -1,6 +1,6 @@
 "use client";
 
-import { useSeasonalAnime } from "@/lib/hooks-axios";
+import { useSeasonalAnime } from "@/lib/api-hooks";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
 

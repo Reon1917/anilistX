@@ -35,7 +35,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.6.2",
-    "jikanjs": "^0.7.0",
     "jotai": "^2.12.2",
     "lucide-react": "^0.468.0",
     "next": "latest",
@@ -51,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.23.0",
+    "@next/eslint-plugin-next": "^15.2.4",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/node": "22.10.2",
@@ -58,6 +58,7 @@
     "@types/react-dom": "19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9.23.0",
+    "eslint-config-next": "^15.2.4",
     "eslint-plugin-react": "^7.37.4",
     "globals": "^16.0.0",
     "jsdom": "^26.0.0",

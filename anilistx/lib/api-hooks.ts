@@ -1,16 +1,152 @@
-// This file provides a compatibility layer to ensure consistent hook usage
-import { 
-  useTopAnime as useTopAnimeAxios,
-  useSeasonalAnime as useSeasonalAnimeAxios
-} from './hooks-axios';
+// Consolidated API Hooks file that combines functionality from previous hook files
+import useSWR from 'swr';
+import useSWRInfinite from 'swr/infinite';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import jikanTsService from './jikan-axios';
-import { JikanResponse, AnimeBasic } from './jikan';
-import useSWR from 'swr';
+import { SearchParams, AnimeBasic, JikanResponse } from './jikan';
 
-// Re-export the hooks from hooks-axios but transform the return structure to match
-// what's expected in the components
+// Using type guards to handle different parameter types
+const isSearchParams = (params: any): params is SearchParams => {
+  return params && typeof params === 'object';
+};
 
+// Specialized fetcher functions for different endpoints
+const fetchAnimeSearch = (params: SearchParams) => {
+  return jikanTsService.searchAnime(params);
+};
+
+const fetchAnimeById = (id: number) => {
+  return jikanTsService.getAnimeById(id);
+};
+
+const fetchTopAnime = (filter: string, page: number, limit: number) => {
+  return jikanTsService.getTopAnime(filter, page, limit);
+};
+
+const fetchSeasonalAnime = (year: number | undefined, season: string | undefined, page: number, limit: number) => {
+  return jikanTsService.getSeasonalAnime(year, season, page, limit);
+};
+
+const fetchRecommendations = (id: number, page: number, limit: number) => {
+  return jikanTsService.getAnimeRecommendations(id, page, limit);
+};
+
+const fetchGenres = () => {
+  return jikanTsService.getGenres();
+};
+
+// Master fetcher function
+const fetcher = async (url: string, params: unknown) => {
+  const [endpoint, method] = url.split(':');
+  
+  switch (endpoint) {
+    case 'anime':
+      switch (method) {
+        case 'search':
+          return fetchAnimeSearch(params as SearchParams);
+        case 'id': {
+          const animeId = (params as { id: number }).id;
+          return fetchAnimeById(animeId);
+        }
+        case 'top': {
+          const topParams = params as { filter?: string; page?: number; limit?: number };
+          return fetchTopAnime(
+            topParams.filter || '', 
+            topParams.page || 1, 
+            topParams.limit || 25
+          );
+        }
+        case 'seasonal': {
+          const seasonalParams = params as { year?: number; season?: string; page?: number; limit?: number };
+          return fetchSeasonalAnime(
+            seasonalParams.year, 
+            seasonalParams.season, 
+            seasonalParams.page || 1, 
+            seasonalParams.limit || 25
+          );
+        }
+        case 'recommendations': {
+          const recParams = params as { id: number; page?: number; limit?: number };
+          return fetchRecommendations(
+            recParams.id, 
+            recParams.page || 1, 
+            recParams.limit || 25
+          );
+        }
+        default:
+          throw new Error(`Unknown method: ${method}`);
+      }
+    case 'genres':
+      return fetchGenres();
+    default:
+      throw new Error(`Unknown endpoint: ${endpoint}`);
+  }
+};
+
+/**
+ * Hook for searching anime
+ */
+export function useAnimeSearch(params: SearchParams = {}, shouldFetch: boolean = true) {
+  const { data, error, isLoading, mutate } = useSWR(
+    shouldFetch ? ['anime:search', params] : null,
+    ([url, params]) => fetcher(url, params),
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+    }
+  );
+
+  return {
+    data: data as JikanResponse<AnimeBasic[]> | undefined,
+    isLoading,
+    isError: error,
+    mutate,
+  };
+}
+
+/**
+ * Hook for getting anime by ID
+ */
+export function useAnimeById(id: number | null) {
+  const { data, error, isLoading } = useSWR(
+    id ? ['anime:id', { id }] : null,
+    ([url, params]) => fetcher(url, params),
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+    }
+  );
+
+  return {
+    anime: data as AnimeBasic | undefined,
+    isLoading,
+    isError: error,
+  };
+}
+
+/**
+ * Hook for getting anime genres
+ */
+export function useAnimeGenres() {
+  const { data, error, isLoading } = useSWR(
+    'genres',
+    (url) => fetcher(url, {}),
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+    }
+  );
+
+  return {
+    genres: data?.data || [],
+    isLoading,
+    isError: error,
+  };
+}
+
+/**
+ * Enhanced hook for getting top anime with better error handling and race condition prevention
+ */
 export function useTopAnime(filter: string = '', page: number = 1, limit: number = 25, version: number = 0) {
   // Track the latest request to avoid race conditions
   const latestRequestRef = useRef<string>('');
@@ -88,14 +224,8 @@ export function useTopAnime(filter: string = '', page: number = 1, limit: number
       revalidateOnMount: true,
       dedupingInterval: 0,
       errorRetryCount: 3,
-      loadingTimeout: 8000, // Set timeout for isLoading state
-      shouldRetryOnError: (err) => {
-        // Don't retry on null returns (canceled requests)
-        return err !== null;
-      },
       // Add fallback data to prevent UI errors when there's no data
       fallbackData,
-      suspense: false, // Ensure we're not using suspense which can cause issues
     }
   );
   
@@ -121,7 +251,9 @@ export function useTopAnime(filter: string = '', page: number = 1, limit: number
   };
 }
 
-// A more robust implementation with memoization and handling stale requests
+/**
+ * Enhanced hook for getting seasonal anime with better error handling
+ */
 export function useSeasonalAnime(year?: number, season?: string, page: number = 1, limit: number = 25, version: number = 0) {
   // Track the latest request to avoid race conditions
   const latestRequestRef = useRef<string>('');
@@ -193,7 +325,6 @@ export function useSeasonalAnime(year?: number, season?: string, page: number = 
   }, [year, season, page, limit, version, fallbackData]);
   
   // Use SWR with a custom key to ensure different parameters trigger refetches
-  // Include all parameters in the cache key to ensure proper invalidation
   const cacheKey = `seasonal:${year || 'current'}:${season || 'current'}:${page}:${limit}:${version}`;
   
   const { data, error, isLoading, mutate } = useSWR(
@@ -205,14 +336,8 @@ export function useSeasonalAnime(year?: number, season?: string, page: number = 
       revalidateOnMount: true,
       dedupingInterval: 0,
       errorRetryCount: 3,
-      loadingTimeout: 8000, // Set timeout for isLoading state
-      shouldRetryOnError: (err) => {
-        // Don't retry on null returns (canceled requests)
-        return err !== null;
-      },
       // Add fallback data to prevent UI errors when there's no data
       fallbackData,
-      suspense: false, // Ensure we're not using suspense which can cause issues
     }
   );
   
@@ -235,5 +360,48 @@ export function useSeasonalAnime(year?: number, season?: string, page: number = 
     isLoading,
     isError: error,
     refresh: () => mutate() // Expose refresh function to manually trigger refetching
+  };
+}
+
+/**
+ * Hook for infinite loading anime
+ */
+export function useInfiniteAnime(params: SearchParams = {}) {
+  // Fixed type for the key generation function
+  const getKey = (pageIndex: number, previousPageData: JikanResponse<AnimeBasic[]> | null): [string, SearchParams] | null => {
+    // Reached the end
+    if (previousPageData && !previousPageData.pagination.has_next_page) return null;
+    
+    // First page, we don't have previousPageData
+    if (pageIndex === 0) return ['anime:search', { ...params, page: 1 }];
+    
+    // Add the page parameter to the params
+    return ['anime:search', { ...params, page: pageIndex + 1 }];
+  };
+
+  const { data, error, size, setSize, isLoading, isValidating } = useSWRInfinite(
+    getKey,
+    ([url, params]) => fetcher(url, params),
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+    }
+  );
+
+  const isLoadingMore = isLoading || (size > 0 && data && typeof data[size - 1] === 'undefined');
+  const isEmpty = data?.[0]?.data?.length === 0;
+  const isReachingEnd = isEmpty || (data && !data[data.length - 1]?.pagination.has_next_page);
+  
+  // Flatten the data array
+  const animeList = data ? data.flatMap(page => page.data) : [];
+
+  return {
+    animeList,
+    error,
+    isLoadingMore,
+    isReachingEnd,
+    size,
+    setSize,
+    isValidating,
   };
 } 

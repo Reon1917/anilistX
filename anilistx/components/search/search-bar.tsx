@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAnimeSearch } from '@/lib/hooks';
+import { useAnimeSearch } from '@/lib/api-hooks';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
 import Image from 'next/image';
