@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTopAnime } from "@/lib/hooks-wrapper";
+import { useTopAnime } from "@/lib/api-hooks";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
 import { Button } from "@/components/ui/button";

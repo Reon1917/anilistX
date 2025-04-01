@@ -35,7 +35,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.6.2",
-    "jikanjs": "^0.7.0",
     "jotai": "^2.12.2",
     "lucide-react": "^0.468.0",
     "next": "latest",

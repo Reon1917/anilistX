@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useAnimeGenres } from "@/lib/hooks-axios";
+import { useAnimeGenres } from "@/lib/api-hooks";
 import {
   Select,
   SelectContent,

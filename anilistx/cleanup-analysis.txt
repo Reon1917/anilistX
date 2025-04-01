@@ -1,0 +1,12 @@
+Core API Services and Dependencies:
+1. @tutkli/jikan-ts - Used in lib/jikan-axios.ts
+2. @mateoaranda/jikanjs - Used in lib/jikan.ts
+3. Direct fetch API calls - Used in app/anime/[id]/page.tsx and components/anime/random-anime-button.tsx
+Hooks Libraries Usage:
+1. @/lib/hooks - Used in components/search/search-bar.tsx
+2. @/lib/hooks-axios - Used in multiple anime components
+3. @/lib/hooks-wrapper - Used in app/top/page.tsx and app/seasonal/page.tsx
+Potentially Unused Packages:
+1. jikanjs - This appears to be redundant with @mateoaranda/jikanjs
+Files to Consider for Removal or Consolidation:
+1. lib/hooks.ts, lib/hooks-axios.ts, lib/hooks-wrapper.ts - These three files seem to have overlapping functionality and could be consolidated

@@ -1,6 +1,7 @@
 "use client";
 
-import { useTopAnime } from "@/lib/hooks-axios";
+import { FC } from "react";
+import { useTopAnime } from "@/lib/api-hooks";
 import { AnimeCard } from "@/components/anime/anime-card";
 import { AnimeCardSkeleton } from "@/components/anime/anime-card-skeleton";
 
