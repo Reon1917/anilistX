@@ -9,7 +9,7 @@ declare module '@mateoaranda/jikanjs' {
     urlParts: (string | number)[],
     params?: object | (() => object),
     mal?: boolean
-  ): Promise<any>;
+  ): Promise<unknown>;
 
   /**
    * Load anime details
@@ -20,8 +20,8 @@ declare module '@mateoaranda/jikanjs' {
   function loadAnime(
     id: number,
     request?: string,
-    parameters?: any
-  ): Promise<any>;
+    parameters?: Record<string, unknown>
+  ): Promise<unknown>;
 
   /**
    * Load seasonal anime
@@ -33,13 +33,13 @@ declare module '@mateoaranda/jikanjs' {
     year: number, 
     season: string, 
     page?: number
-  ): Promise<any>;
+  ): Promise<unknown>;
 
   /**
    * Load current season anime
    * @param page Page number
    */
-  function loadCurrentSeason(page?: number): Promise<any>;
+  function loadCurrentSeason(page?: number): Promise<unknown>;
 
   /**
    * Settings object for configuring the client

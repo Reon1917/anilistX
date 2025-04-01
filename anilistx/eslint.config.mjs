@@ -9,6 +9,16 @@ export default defineConfig([
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"] },
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"], languageOptions: { globals: globals.browser } },
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"], plugins: { js }, extends: ["js/recommended"] },
+  { 
+    settings: { 
+      react: { 
+        version: "detect" 
+      } 
+    },
+    rules: {
+      "react/react-in-jsx-scope": "off"
+    }
+  },
   tseslint.configs.recommended,
   pluginReact.configs.flat.recommended,
 ]);

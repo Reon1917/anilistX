@@ -14,7 +14,7 @@ declare module '@mateoaranda/jikanjs' {
   }
 
   interface Jikanjs {
-    raw(urlParts: (string | number)[], queryParameter?: Record<string, any>, mal?: boolean): Promise<any>;
+    raw(urlParts: (string | number)[], queryParameter?: Record<string, unknown>, mal?: boolean): Promise<unknown>;
     settings: {
       setBaseURL(url: string): void;
     };

@@ -38,7 +38,7 @@ export interface AnimeBasic {
   aired: {
     from: string;
     to: string;
-    prop: any;
+    prop: Record<string, unknown>;
   };
   duration: string;
   rating: string;
@@ -111,7 +111,7 @@ class JikanService {
   async searchAnime(params: SearchParams): Promise<JikanResponse<AnimeBasic[]>> {
     try {
       // Create the params object without including undefined values
-      const queryParams: Record<string, any> = {};
+      const queryParams: Record<string, unknown> = {};
       if (params.limit) queryParams.limit = params.limit;
       if (params.type) queryParams.type = params.type;
       if (params.status) queryParams.status = params.status;
@@ -215,7 +215,7 @@ class JikanService {
   /**
    * Get anime recommendations
    */
-  async getAnimeRecommendations(id: number, page: number = 1, limit: number = 25): Promise<any> {
+  async getAnimeRecommendations(id: number, page: number = 1, limit: number = 25): Promise<JikanResponse<Record<string, unknown>[]>> {
     try {
       const response = await jikanjs.raw(['anime', id, 'recommendations'], function() {
         return {
@@ -233,7 +233,7 @@ class JikanService {
   /**
    * Get anime genres
    */
-  async getGenres(): Promise<any> {
+  async getGenres(): Promise<JikanResponse<Record<string, unknown>[]>> {
     try {
       const response = await jikanjs.raw(['genres', 'anime']);
       return response;
