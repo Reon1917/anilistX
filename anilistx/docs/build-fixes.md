@@ -24,6 +24,9 @@
 4. **Rendering Mode**
    - Forced dynamic rendering for `app/protected/settings/page.tsx` to fix build-time session access error.
 
+5. **Suspense Boundary**
+   - Wrapped the `LoginForm` component in `app/(auth-pages)/login/page.tsx` with `<Suspense>` to resolve the `useSearchParams()` error during static generation.
+
 ## Remaining Issues
 
 The solution implements a pragmatic approach by disabling certain checks during build time. This allows the build to complete successfully while development can continue. In the long term, the following should be addressed:

@@ -1,5 +1,8 @@
 import { LoginForm } from "@/components/auth/login-form"
 import { Metadata } from "next"
+import { SupabaseLogo } from "@/components/supabase-logo"
+import Link from "next/link"
+import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: "Login | AnilistX",
@@ -7,5 +10,16 @@ export const metadata: Metadata = {
 }
 
 export default function LoginPage() {
-  return <LoginForm />
+  return (
+    <div className="flex flex-col gap-8 items-center">
+      <Link href="/" className="flex items-center gap-2 font-semibold">
+        <SupabaseLogo />
+        AnilistX
+      </Link>
+
+      <Suspense fallback={<div>Loading...</div>}>
+        <LoginForm />
+      </Suspense>
+    </div>
+  )
 } 
