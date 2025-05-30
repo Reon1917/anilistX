@@ -194,7 +194,6 @@ export function useTopAnime(filter: string = '', page: number = 1, limit: number
         }
         
         // If data structure is invalid, return fallback
-        console.warn('Invalid data structure received from API:', result);
         return fallbackData;
       }
       
@@ -204,8 +203,6 @@ export function useTopAnime(filter: string = '', page: number = 1, limit: number
     } catch (error) {
       // Remove this request from in-flight tracking
       requestsInFlightRef.current.delete(requestId);
-      
-      console.error('Error fetching top anime:', error);
       
       // Return fallback data for all errors
       return fallbackData;
@@ -306,7 +303,6 @@ export function useSeasonalAnime(year?: number, season?: string, page: number = 
         }
         
         // If data structure is invalid, return fallback
-        console.warn('Invalid data structure received from API:', result);
         return fallbackData;
       }
       
@@ -316,8 +312,6 @@ export function useSeasonalAnime(year?: number, season?: string, page: number = 
     } catch (error) {
       // Remove this request from in-flight tracking
       requestsInFlightRef.current.delete(requestId);
-      
-      console.error('Error fetching seasonal anime:', error);
       
       // Return fallback data for all errors
       return fallbackData;

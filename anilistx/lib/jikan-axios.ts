@@ -32,11 +32,9 @@ class JikanTsService {
       Array.from(this.cache.keys())
         .filter(key => regex.test(key))
         .forEach(key => this.cache.delete(key));
-      console.log(`Cleared cache entries matching: ${pattern}`);
     } else {
       // Clear entire cache
       this.cache.clear();
-      console.log('Cleared entire cache');
     }
   }
   
@@ -103,7 +101,6 @@ class JikanTsService {
         return response as unknown as JikanResponse<AnimeBasic[]>;
       });
     } catch (error) {
-      console.error('Error searching anime:', error);
       throw error;
     }
   }
@@ -120,7 +117,6 @@ class JikanTsService {
         return response.data as unknown as AnimeBasic;
       });
     } catch (error) {
-      console.error(`Error fetching anime with ID ${id}:`, error);
       throw error;
     }
   }
@@ -144,8 +140,6 @@ class JikanTsService {
           params.type = filter;
         }
         
-        console.log(`Making API request to getTopAnime with params:`, params);
-        
         // Add retry logic to handle temporary API failures
         const maxRetries = 3;
         let retryCount = 0;
@@ -164,10 +158,8 @@ class JikanTsService {
         const executeRequest = async () => {
           try {
             const response = await this.client.top.getTopAnime(params);
-            console.log(`API response for ${filter || 'all'}: ${response?.data?.length || 0} results`);
             return response;
           } catch (error) {
-            console.error(`Attempt ${retryCount + 1} failed for getTopAnime with filter ${filter}:`, error);
             throw error;
           }
         };
@@ -179,8 +171,6 @@ class JikanTsService {
           } catch (error) {
             retryCount++;
             if (retryCount >= maxRetries) {
-              console.error(`All ${maxRetries} attempts failed for getTopAnime`);
-              
               // Clear the cache for this filter to prevent reusing bad data
               this.clearCache(`top:${filter}`);
               
@@ -203,7 +193,6 @@ class JikanTsService {
         return response as unknown as JikanResponse<AnimeBasic[]>;
       });
     } catch (error) {
-      console.error('Error fetching top anime:', error);
       // Return empty data instead of throwing
       return { 
         data: [], 
@@ -252,7 +241,6 @@ class JikanTsService {
               return await this.client.seasons.getSeasonNow(params);
             }
           } catch (error) {
-            console.error(`Attempt ${retryCount + 1} failed:`, error);
             throw error;
           }
         };
@@ -264,7 +252,6 @@ class JikanTsService {
           } catch (error) {
             retryCount++;
             if (retryCount >= maxRetries) {
-              console.error(`All ${maxRetries} attempts failed for getSeasonalAnime`);
               // Return empty data instead of throwing to prevent UI issues
               return { 
                 data: [], 
@@ -285,7 +272,6 @@ class JikanTsService {
         return response as unknown as JikanResponse<AnimeBasic[]>;
       });
     } catch (error) {
-      console.error('Error fetching seasonal anime:', error);
       // Return empty data instead of throwing
       return { 
         data: [], 
@@ -307,12 +293,10 @@ class JikanTsService {
       try {
         return await this.client.anime.getAnimeRecommendations(id);
       } catch (e) {
-        console.error('Failed to get recommendations:', e);
         // Fallback to empty response
         return { data: [] };
       }
     } catch (error) {
-      console.error(`Error fetching recommendations for anime ${id}:`, error);
       throw error;
     }
   }
@@ -324,7 +308,6 @@ class JikanTsService {
     try {
       return await this.client.genres.getAnimeGenres();
     } catch (error) {
-      console.error('Error fetching anime genres:', error);
       throw error;
     }
   }
@@ -342,7 +325,6 @@ class JikanTsService {
       
       return response;
     } catch (error) {
-      console.error(`Error fetching anime by genre ${genreId}:`, error);
       throw error;
     }
   }
@@ -360,7 +342,6 @@ class JikanTsService {
       
       return response;
     } catch (error) {
-      console.error(`Error searching anime with text "${text}":`, error);
       throw error;
     }
   }

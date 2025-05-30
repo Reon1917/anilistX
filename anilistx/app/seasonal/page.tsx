@@ -48,7 +48,7 @@ export default function SeasonalPage() {
   const [retryCount, setRetryCount] = useState(0);
   
   // Get the data using our improved hook that handles caching correctly
-  const { data, isLoading, isError, refresh } = useSeasonalAnime(year, season, page, 25, retryCount);
+  const { data, isLoading, isError, refresh } = useSeasonalAnime(displayYear, displaySeason, page, 25, retryCount);
   
   // Setup loading timeout to detect stuck loading states
   useEffect(() => {
@@ -60,7 +60,6 @@ export default function SeasonalPage() {
       
       // Set a new timeout to auto-retry if loading takes too long
       loadingTimeoutRef.current = setTimeout(() => {
-        console.log('Loading timeout - auto retrying...');
         setRetryCount(prev => prev + 1);
       }, 10000); // 10 seconds timeout
     } else {

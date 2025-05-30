@@ -34,7 +34,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 items-start">
-      <div className="bg-card rounded-lg shadow-sm p-6 flex flex-col items-center gap-4 md:w-72">
+      <div className="w-full md:w-72 bg-card rounded-lg shadow-sm p-6 flex flex-col items-center gap-4">
         <div className="h-32 w-32 rounded-full bg-muted flex items-center justify-center">
           <User className="h-16 w-16 text-muted-foreground" />
         </div>
@@ -87,7 +87,7 @@ export default async function SettingsPage() {
         </div>
       </div>
       
-      <div className="flex-1 space-y-6">
+      <div className="w-full flex-1 space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
         
         <ProfileSettingsForm initialData={profile} userId={session.user.id} />
